@@ -1,0 +1,69 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  avatar        String?
+  password      String?
+  googleId      String?   @unique
+  emailVerified DateTime?
+  balance       Float     @default(1000.00)
+  currency      String    @default("EUR")
+  
+  sentTransfers     Transfer[] @relation("sender")
+  receivedTransfers Transfer[] @relation("recipient")
+  accounts          Account[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([email])
+  @@index([googleId])
+}
+
+model Transfer {
+  id          String   @id @default(cuid())
+  amount      Float
+  currency    String   @default("EUR")
+  status      String   @default("COMPLETED")
+  reference   String?
+  
+  senderId    String
+  recipientId String
+  sender      User     @relation("sender", fields: [senderId], references: [id])
+  recipient   User     @relation("recipient", fields: [recipientId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  completedAt DateTime @default(now())
+  
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([createdAt])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
