@@ -17,13 +17,8 @@ export async function POST(request: Request) {
     const { amount, recipientDetails } = await request.json()
 
     // 1️⃣ Authenticated Quote erstellen [citation:1]
-    const quote = await wise.createAuthenticatedQuote(
-      PROFILE_ID,
-      'EUR',
-      'EUR',  // Für jetzt: gleiche Währung
-      amount,
-      true
-    )
+    const quote = await wise.createAuthenticatedQuote(amount, 'EUR')
+    
 
     console.log('✅ Quote erstellt:', quote.id)
 
