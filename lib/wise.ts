@@ -1,33 +1,25 @@
-﻿export class WiseService {
+﻿import { NextResponse } from 'next/server'
+
+export class WiseService {
   private apiToken: string
-  private baseUrl = 'https://api.wise.com/v3'  // WICHTIG: v3 für Produktion!
+  private baseUrl = 'https://api.wise.com/v3'
 
   constructor() {
     this.apiToken = process.env.WISE_API_TOKEN!
   }
 
-  // 🔥 Authenticated Quote (für echte Transfers) [citation:1][citation:2]
+  // 🔥 Authenticated Quote (vereinfacht für deine App)
   async createAuthenticatedQuote(
-    profileId: string,
-    sourceCurrency: string,
-    targetCurrency: string,
     amount: number,
-    isSourceAmount: boolean = true
+    targetCurrency: string = 'GBP'
   ) {
-    const payload: any = {
-      sourceCurrency,
-      targetCurrency,
-      targetAccount: null
+    const payload = {
+      sourceCurrency: 'EUR',
+      targetCurrency: targetCurrency,
+      sourceAmount: amount
     }
 
-    // Entweder sourceAmount ODER targetAmount (nie beide!) [citation:1]
-    if (isSourceAmount) {
-      payload.sourceAmount = amount
-    } else {
-      payload.targetAmount = amount
-    }
-
-    const response = await fetch(`${this.baseUrl}/profiles/${profileId}/quotes`, {
+    const response = await fetch(`${this.baseUrl}/profiles/${process.env.WISE_PROFILE_ID}/quotes`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.apiToken}`,
@@ -44,7 +36,7 @@
     return response.json()
   }
 
-  // 📝 Empfänger erstellen (für Auszahlungen) [citation:2]
+  // 📝 Empfänger erstellen (für Auszahlungen)
   async createRecipient(profileId: string, recipientData: any) {
     const response = await fetch(`${this.baseUrl}/accounts`, {
       method: 'POST',
@@ -60,7 +52,7 @@
     return response.json()
   }
 
-  // 💸 Transfer erstellen [citation:2]
+  // 💸 Transfer erstellen
   async createTransfer(quoteId: string, targetAccountId: string, reference: string) {
     const response = await fetch(`${this.baseUrl}/transfers`, {
       method: 'POST',
@@ -80,7 +72,7 @@
     return response.json()
   }
 
-  // 💰 Transfer finanzieren (Geld senden) [citation:2]
+  // 💰 Transfer finanzieren (Geld senden)
   async fundTransfer(profileId: string, transferId: string) {
     const response = await fetch(`${this.baseUrl}/profiles/${profileId}/transfers/${transferId}/payments`, {
       method: 'POST',

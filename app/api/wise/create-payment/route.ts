@@ -7,11 +7,11 @@ export async function POST(request: Request) {
   try {
     const { amount, userId, email } = await request.json()
 
-    console.log(' Wise Payment Request:', { amount, userId, email })
+    console.log('📝 Wise Payment Request:', { amount, userId, email })
 
-    // 1. Quote erstellen (NUR sourceAmount!)
-    const quote = await wise.createQuote(amount, 'GBP')
-    console.log(' Quote erstellt:', quote)
+    // 1. Quote erstellen (vereinfacht!)
+    const quote = await wise.createAuthenticatedQuote(amount, 'GBP')
+    console.log('✅ Quote erstellt:', quote)
 
     if (!quote.id) {
       return NextResponse.json(
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
     // 2. Transfer erstellen
     const transfer = await wise.createTransfer(quote.id, userId, email)
-    console.log(' Transfer erstellt:', transfer)
+    console.log('✅ Transfer erstellt:', transfer)
 
     return NextResponse.json({
       success: true,
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     })
 
   } catch (error: any) {
-    console.error(' Wise API Error:', error)
+    console.error('❌ Wise API Error:', error)
     return NextResponse.json(
       { error: error.message || 'Fehler bei der Zahlungsabwicklung' },
       { status: 500 }
