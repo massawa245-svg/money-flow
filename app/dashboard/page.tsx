@@ -4,10 +4,19 @@ import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
+interface Transfer {
+  id: string
+  amount: number
+  reference: string | null
+  createdAt: string
+  sender: { email: string }
+  recipient: { email: string }
+}
+
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [balance, setBalance] = useState(0)
-  const [transfers, setTransfers] = useState<any[]>([])
+  const [transfers, setTransfers] = useState<Transfer[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
@@ -59,92 +68,112 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex justify-between items-center">
+      {/* Header mit Balance */}
+      <div className="bg-gradient-to-br from-blue-600 to-blue-500 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <p className="text-blue-100">Willkommen zurück,</p>
-              <h1 className="text-3xl font-bold">{user?.user_metadata?.full_name || user?.email?.split('@')[0]}</h1>
+              <p className="text-blue-100 text-sm font-medium">Willkommen zurück</p>
+              <h1 className="text-xl sm:text-2xl font-semibold mt-1">
+                {user?.user_metadata?.full_name || user?.email?.split('@')[0]}
+              </h1>
             </div>
-            <div className="text-right">
-              <p className="text-blue-100">Aktuelles Guthaben</p>
-              <p className="text-4xl font-bold">{balance.toFixed(2)}</p>
+            <div className="text-left sm:text-right">
+              <p className="text-blue-100 text-sm">Verfügbares Guthaben</p>
+              <p className="text-2xl sm:text-4xl font-bold tracking-tight">
+                € {balance.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6">
-        <div className="grid grid-cols-5 gap-3 bg-white rounded-xl shadow-lg p-4">
-          {[
-            { href: "/transfer", icon: "", label: "Senden", desc: "An Freunde" },
-            { href: "/receive", icon: "", label: "Empfangen", desc: "QR-Code" },
-            { href: "/withdraw", icon: "", label: "Abheben", desc: "Auf Konto" },
-            { href: "/add-money", icon: "", label: "Aufladen", desc: "Geld einzahlen" },
-            { href: "/profile", icon: "", label: "Profil", desc: "Einstellungen" }
-          ].map((item) => (
-            <Link key={item.href} href={item.href} className="text-center hover:bg-gray-50 p-3 rounded-lg transition">
-              <div className="text-3xl mb-1">{item.icon}</div>
-              <div className="font-medium text-sm">{item.label}</div>
-              <div className="text-xs text-gray-500">{item.desc}</div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        <div className="grid grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl shadow p-6">
-            <p className="text-gray-600 text-sm">Gesendet</p>
-            <p className="text-2xl font-bold mt-2">€{stats.sent.toFixed(2)}</p>
-            <p className="text-green-600 text-sm mt-2">+12% diesen Monat</p>
-          </div>
-          <div className="bg-white rounded-xl shadow p-6">
-            <p className="text-gray-600 text-sm">Empfangen</p>
-            <p className="text-2xl font-bold mt-2">€{stats.received.toFixed(2)}</p>
-            <p className="text-green-600 text-sm mt-2">+8% diesen Monat</p>
-          </div>
-          <div className="bg-white rounded-xl shadow p-6">
-            <p className="text-gray-600 text-sm">Transaktionen</p>
-            <p className="text-2xl font-bold mt-2">{stats.count}</p>
-            <p className="text-gray-600 text-sm mt-2">+{stats.count} insgesamt</p>
+      {/* Quick Actions - Farbig & Größer für Desktop */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
+          <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-6">
+            {[
+              { href: "/transfer", icon: "💸", label: "Senden", color: "from-blue-500 to-blue-600" },
+              { href: "/receive", icon: "📥", label: "Empfangen", color: "from-green-500 to-green-600" },
+              { href: "/withdraw", icon: "🏧", label: "Abheben", color: "from-orange-500 to-orange-600" },
+              { href: "/add-money", icon: "💰", label: "Aufladen", color: "from-purple-500 to-purple-600" },
+              { href: "/profile", icon: "👤", label: "Profil", color: "from-gray-500 to-gray-600" }
+            ].map((item, idx) => (
+              <Link key={idx} href={item.href} className="flex-1 min-w-[70px] sm:min-w-[100px] max-w-[100px] sm:max-w-[120px]">
+                <div className="flex flex-col items-center group cursor-pointer">
+                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${item.color} text-white flex items-center justify-center text-2xl sm:text-3xl shadow-md group-hover:scale-110 group-hover:shadow-lg transition-all duration-200`}>
+                    {item.icon}
+                  </div>
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 mt-2 text-center">{item.label}</span>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Recent Transactions */}
+      {/* Stats Cards */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5">
+            <p className="text-gray-500 text-xs sm:text-sm mb-1">Gesendet</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">€ {stats.sent.toFixed(2)}</p>
+            <p className="text-xs text-green-600 mt-2">+12% diesen Monat</p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5">
+            <p className="text-gray-500 text-xs sm:text-sm mb-1">Empfangen</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">€ {stats.received.toFixed(2)}</p>
+            <p className="text-xs text-green-600 mt-2">+8% diesen Monat</p>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5">
+            <p className="text-gray-500 text-xs sm:text-sm mb-1">Transaktionen</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.count}</p>
+            <p className="text-xs text-gray-500 mt-2">+{stats.count} insgesamt</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Letzte Transaktionen */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 pb-12">
-        <div className="bg-white rounded-xl shadow overflow-hidden">
-          <div className="px-6 py-4 border-b flex justify-between items-center">
-            <h2 className="font-semibold">Letzte Transaktionen</h2>
-            <Link href="/transactions" className="text-blue-600 text-sm hover:underline">Alle anzeigen →</Link>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h2 className="font-semibold text-gray-900 text-sm sm:text-base">Letzte Transaktionen</h2>
+            <Link href="/transactions" className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 font-medium">
+              Alle anzeigen →
+            </Link>
           </div>
           
           {transfers.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <p>Noch keine Transaktionen</p>
-              <Link href="/transfer" className="text-blue-600 text-sm mt-2 inline-block">Jetzt erste Überweisung </Link>
+            <div className="p-8 sm:p-12 text-center">
+              <p className="text-gray-500 text-sm sm:text-base">Noch keine Transaktionen</p>
+              <Link href="/transfer" className="text-blue-600 text-xs sm:text-sm mt-2 inline-block">
+                Jetzt erste Überweisung →
+              </Link>
             </div>
           ) : (
-            <div className="divide-y">
+            <div className="divide-y divide-gray-100">
               {transfers.slice(0, 5).map((t) => {
                 const isSent = t.sender.email === user?.email
+                const date = new Date(t.createdAt)
                 return (
-                  <div key={t.id} className="px-6 py-4 flex justify-between items-center hover:bg-gray-50">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isSent ? 'bg-orange-100' : 'bg-green-100'}`}>
-                        <span>{isSent ? '' : ''}</span>
+                  <div key={t.id} className="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between hover:bg-gray-50 transition">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${
+                        isSent ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                      }`}>
+                        <span className="text-sm sm:text-base">{isSent ? '⬆' : '⬇'}</span>
                       </div>
                       <div>
-                        <p className="font-medium">{isSent ? 'An ' + t.recipient.email.split('@')[0] : 'Von ' + t.sender.email.split('@')[0]}</p>
-                        <p className="text-xs text-gray-500">{new Date(t.createdAt).toLocaleDateString('de-DE')}</p>
+                        <p className="font-medium text-gray-900 text-sm sm:text-base">
+                          {isSent ? 'An ' + t.recipient.email.split('@')[0] : 'Von ' + t.sender.email.split('@')[0]}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {date.toLocaleDateString('de-DE')} {t.reference && `· ${t.reference}`}
+                        </p>
                       </div>
                     </div>
-                    <p className={`font-bold ${isSent ? 'text-orange-600' : 'text-green-600'}`}>
-                      {isSent ? '-' : '+'}{t.amount.toFixed(2)}
+                    <p className={`font-bold text-sm sm:text-base ${isSent ? 'text-red-600' : 'text-green-600'}`}>
+                      {isSent ? '-' : '+'} € {t.amount.toFixed(2)}
                     </p>
                   </div>
                 )
@@ -152,15 +181,6 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Floating Action Button */}
-      <div className="fixed bottom-8 right-8">
-        <Link href="/transfer">
-          <button className="bg-blue-600 text-white w-14 h-14 rounded-full shadow-2xl hover:bg-blue-700 transition flex items-center justify-center text-2xl">
-            
-          </button>
-        </Link>
       </div>
     </div>
   )

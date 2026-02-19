@@ -7,8 +7,8 @@ import Footer from "@/components/Footer"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "MoneyFlow - Deine Geldtransfer App",
-  description: "Sicher, schnell und einfach Geld senden weltweit",
+  title: "Money Transfer App",
+  description: "Send money instantly and securely",
 }
 
 export default function RootLayout({
@@ -18,9 +18,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="de">
-      <body className={`${inter.className} flex flex-col min-h-screen bg-gray-50`}>
+      <body className={`${inter.className} flex flex-col min-h-screen`}>
         <Header />
-        <main className="flex-grow">
+        <main className="flex-grow bg-gray-50">
           {children}
         </main>
         <Footer />

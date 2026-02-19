@@ -1,10 +1,11 @@
+"use client"
 import Link from "next/link"
 
 export default function Footer() {
   return (
     <footer className="bg-gradient-to-r from-blue-600 to-blue-800 text-white mt-auto">
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* Hauptfooter */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Footer Links */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
           <div>
             <h3 className="font-bold mb-3">Über uns</h3>

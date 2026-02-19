@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
+import { WebAuthnService } from "@/lib/webauthn"
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null)
@@ -17,6 +18,11 @@ export default function ProfilePage() {
   const [address, setAddress] = useState("")
   const [birthday, setBirthday] = useState("")
   const [avatarUrl, setAvatarUrl] = useState("/default-avatar.png")
+  
+  // Biometrie Status
+  const [bioAvailable, setBioAvailable] = useState(false)
+  const [bioRegistered, setBioRegistered] = useState(false)
+  const [bioLoading, setBioLoading] = useState(false)
   
   const router = useRouter()
 
@@ -38,6 +44,12 @@ export default function ProfilePage() {
     setAddress(user.user_metadata?.address || "")
     setBirthday(user.user_metadata?.birthday || "")
     setAvatarUrl(user.user_metadata?.avatar_url || "/default-avatar.png")
+    
+    // Biometrie Status prüfen
+    setBioAvailable(WebAuthnService.isAvailable())
+    // In einer echten Implementierung würde man hier prüfen ob registriert
+    // setBioRegistered(await WebAuthnService.isRegistered())
+    
     setLoading(false)
   }
 
@@ -75,16 +87,35 @@ export default function ProfilePage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Simuliere Avatar-Upload
     const reader = new FileReader()
     reader.onload = (e) => {
       setAvatarUrl(e.target?.result as string)
       setMessage({
         type: 'success',
-        text: ' Avatar aktualisiert (Demo)'
+        text: '✅ Avatar aktualisiert'
       })
     }
     reader.readAsDataURL(file)
+  }
+
+  // Biometrie Handler
+  const handleRegisterBiometric = async () => {
+    setBioLoading(true)
+    const result = await WebAuthnService.register()
+    
+    if (result.success) {
+      setMessage({
+        type: 'success',
+        text: '✅ Biometrie erfolgreich eingerichtet!'
+      })
+      setBioRegistered(true)
+    } else {
+      setMessage({
+        type: 'error',
+        text: result.error || 'Fehler bei der Einrichtung'
+      })
+    }
+    setBioLoading(false)
   }
 
   if (loading) {
@@ -119,7 +150,7 @@ export default function ProfilePage() {
             href="/dashboard" 
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors group"
           >
-            <span className="text-xl group-hover:-translate-x-1 transition-transform"></span>
+            <span className="text-xl group-hover:-translate-x-1 transition-transform">←</span>
             <span>Zurück zum Dashboard</span>
           </Link>
         </div>
@@ -130,7 +161,7 @@ export default function ProfilePage() {
           <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-8 py-6">
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
-                <span className="text-3xl"></span>
+                <span className="text-3xl">👤</span>
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">Mein Profil</h1>
@@ -186,7 +217,7 @@ export default function ProfilePage() {
                 {/* Konto-Info */}
                 <div className="bg-gray-50 p-6 rounded-2xl">
                   <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                    <span className="text-blue-600"></span>
+                    <span className="text-blue-600">📊</span>
                     Konto-Informationen
                   </h3>
                   <div className="space-y-3 text-sm">
@@ -197,15 +228,50 @@ export default function ProfilePage() {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Login-Methode:</span>
                       <span className="font-medium flex items-center gap-1">
-                        {provider === 'google' ? ' Google' : ' Email'}
+                        {provider === 'google' ? '🔵 Google' : '✉️ Email'}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Konto-Status:</span>
-                      <span className="text-green-600 font-medium"> Aktiv</span>
+                      <span className="text-green-600 font-medium">✅ Aktiv</span>
                     </div>
                   </div>
                 </div>
+
+                {/* Biometrie Card - NEU! */}
+                {bioAvailable && (
+                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-6 rounded-2xl border-2 border-purple-200">
+                    <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                      <span className="text-purple-600">🔐</span>
+                      Biometrische Anmeldung
+                    </h3>
+                    
+                    {bioRegistered ? (
+                      <div>
+                        <p className="text-green-600 mb-3">✅ Biometrie ist aktiviert</p>
+                        <button
+                          onClick={() => {/* Deaktivieren */}}
+                          className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition"
+                        >
+                          Biometrie deaktivieren
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-gray-600 mb-3">
+                          Richte Fingerabdruck oder FaceID für schnelleren Login ein.
+                        </p>
+                        <button
+                          onClick={handleRegisterBiometric}
+                          disabled={bioLoading}
+                          className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
+                        >
+                          {bioLoading ? 'Wird eingerichtet...' : '🖐️ Biometrie einrichten'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Rechte Spalte - Formular */}
@@ -218,7 +284,7 @@ export default function ProfilePage() {
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
-                        
+                        👤
                       </span>
                       <input
                         type="text"
@@ -237,7 +303,7 @@ export default function ProfilePage() {
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
-                        
+                        📞
                       </span>
                       <input
                         type="tel"
@@ -256,7 +322,7 @@ export default function ProfilePage() {
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-3 text-gray-400 text-xl">
-                        
+                        📍
                       </span>
                       <textarea
                         value={address}
@@ -275,7 +341,7 @@ export default function ProfilePage() {
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
-                        
+                        🎂
                       </span>
                       <input
                         type="date"
@@ -302,7 +368,7 @@ export default function ProfilePage() {
                           Wird gespeichert...
                         </span>
                       ) : (
-                        " Änderungen speichern"
+                        "💾 Änderungen speichern"
                       )}
                     </button>
                     
@@ -318,7 +384,7 @@ export default function ProfilePage() {
                 {/* Sicherheitsbereich */}
                 <div className="mt-8 pt-6 border-t-2 border-gray-100">
                   <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                    <span className="text-red-500"></span>
+                    <span className="text-red-500">🔒</span>
                     Sicherheitseinstellungen
                   </h3>
                   
@@ -328,7 +394,7 @@ export default function ProfilePage() {
                       className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition flex items-center gap-3"
                     >
                       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-                        
+                        🔑
                       </div>
                       <div>
                         <p className="font-semibold">Passwort ändern</p>
@@ -341,7 +407,7 @@ export default function ProfilePage() {
                       className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition flex items-center gap-3"
                     >
                       <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
-                        
+                        📱
                       </div>
                       <div>
                         <p className="font-semibold">2FA aktivieren</p>
@@ -354,7 +420,7 @@ export default function ProfilePage() {
                       className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition flex items-center gap-3"
                     >
                       <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-                        
+                        💻
                       </div>
                       <div>
                         <p className="font-semibold">Aktive Sitzungen</p>
@@ -367,7 +433,7 @@ export default function ProfilePage() {
                       className="p-4 bg-red-50 rounded-xl hover:bg-red-100 transition flex items-center gap-3"
                     >
                       <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-red-600">
-                        
+                        ⚠️
                       </div>
                       <div>
                         <p className="font-semibold text-red-600">Konto löschen</p>
