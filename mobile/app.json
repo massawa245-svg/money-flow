@@ -52,7 +52,15 @@
           "faceIDPermission": "Wird benötigt, um Zahlungen per Face ID zu bestätigen."
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Wird benötigt, um deinen Ausweis und ein Selfie zur Identitätsprüfung aufzunehmen.",
+          "photosPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

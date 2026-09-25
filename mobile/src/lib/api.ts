@@ -33,11 +33,39 @@ export type Transfer = {
   recipient: TransferParty;
 };
 
+export type KycStatus = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
 export type Overview = {
   success: true;
   balance: number;
   currency: string;
+  kycStatus: KycStatus;
   transfers: Transfer[];
+};
+
+export type KycProfile = {
+  kycStatus: KycStatus;
+  firstName: string | null;
+  lastName: string | null;
+  dateOfBirth: string | null;
+  street: string | null;
+  postalCode: string | null;
+  city: string | null;
+  country: string | null;
+  kycRejectReason: string | null;
+};
+
+export type KycSubmission = {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  street: string;
+  postalCode: string;
+  city: string;
+  country: string;
+  idFrontPath: string;
+  idBackPath: string;
+  selfiePath: string;
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -75,6 +103,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+  getKyc: () => request<{ success: true; kyc: KycProfile }>('/api/kyc'),
+  submitKyc: (input: KycSubmission) =>
+    request<{ success: true; kyc: KycProfile }>('/api/kyc', { method: 'POST', body: JSON.stringify(input) }),
   getPayment: (id: string) => request<{ success: true; payment: PaymentDetails }>(`/api/pay/${id}`),
   confirmPayment: (id: string) =>
     request<{ success: boolean; payment: PaymentDetails }>(`/api/pay/${id}/confirm`, { method: 'POST' }),

@@ -18,6 +18,24 @@ model User {
   balance       Float     @default(1000.00)
   currency      String    @default("EUR")
   role          String    @default("CUSTOMER") // CUSTOMER | MERCHANT
+  isAdmin       Boolean   @default(false) // darf Ausweise prüfen und Konten freischalten
+
+  // Identitätsprüfung (KYC). Geldbewegungen erst ab APPROVED.
+  kycStatus       String    @default("NONE") // NONE | PENDING | APPROVED | REJECTED
+  firstName       String?
+  lastName        String?
+  dateOfBirth     String?   // YYYY-MM-DD
+  street          String?
+  postalCode      String?
+  city            String?
+  country         String?
+  // Pfade im privaten Supabase-Storage-Bucket "kyc-documents" (<auth-uid>/<datei>)
+  kycIdFrontPath  String?
+  kycIdBackPath   String?
+  kycSelfiePath   String?
+  kycSubmittedAt  DateTime?
+  kycReviewedAt   DateTime?
+  kycRejectReason String?
 
   sentTransfers     Transfer[] @relation("sender")
   receivedTransfers Transfer[] @relation("recipient")

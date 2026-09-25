@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { ratelimit } from '@/lib/rate-limit'
 import { logAudit } from '@/lib/audit'
+import { requireVerified } from '@/lib/kyc'
 
 // ⚠️ TESTMODUS: Ein- und Auszahlungen ändern nur den Kontostand in der Datenbank.
 // Es fließt KEIN echtes Geld. Wird ersetzt, sobald ein regulierter Zahlungspartner angebunden ist.
@@ -48,6 +49,9 @@ export async function POST(request: Request) {
       )
     }
     const rounded = Math.round(amount * 100) / 100
+
+    const blocked = requireVerified(await prisma.user.findUnique({ where: { email: user.email! } }))
+    if (blocked) return blocked
 
     const transfer = await prisma.$transaction(async (tx) => {
       let dbUser = await tx.user.findUnique({ where: { email: user.email! } })

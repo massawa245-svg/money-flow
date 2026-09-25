@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Alert } from 'react-native';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -6,6 +7,7 @@ import { Icon } from '@/components/icon';
 import { Button } from '@/components/ui/button';
 import { FontFamily, Palette, Radius } from '@/constants/theme';
 import { useSession } from '@/lib/auth-context';
+import { authenticateBiometric, setBiometricLockEnabled, shouldOfferBiometricLock } from '@/lib/biometric';
 
 export default function SignInScreen() {
   const { signIn } = useSession();
@@ -19,7 +21,21 @@ export default function SignInScreen() {
     setIsSubmitting(true);
     const { error } = await signIn(email.trim(), password);
     setIsSubmitting(false);
-    if (error) setError(error);
+    if (error) {
+      setError(error);
+      return;
+    }
+    if (await shouldOfferBiometricLock()) {
+      Alert.alert('Mit Fingerabdruck entsperren?', 'Beim nächsten Öffnen entsperrst du die App mit deinem Fingerabdruck statt mit dem Passwort.', [
+        { text: 'Später', style: 'cancel' },
+        {
+          text: 'Aktivieren',
+          onPress: async () => {
+            if (await authenticateBiometric('Fingerabdruck bestätigen')) await setBiometricLockEnabled(true);
+          },
+        },
+      ]);
+    }
   }
 
   const canSubmit = email.trim().length > 0 && password.length > 0;

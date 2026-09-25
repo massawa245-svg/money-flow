@@ -18,7 +18,7 @@ function greeting() {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { session, signOut } = useSession();
+  const { session } = useSession();
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -62,8 +62,8 @@ export default function HomeScreen() {
               {name}
             </Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Abmelden" onPress={signOut} style={styles.avatar}>
-            <Icon name="logout" size={20} color={Palette.ink} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Profil" onPress={() => router.push('/profile')} style={styles.avatar}>
+            <Icon name="user" size={22} color={Palette.ink} />
           </Pressable>
         </View>
 
@@ -81,6 +81,33 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
+
+        {overview && overview.kycStatus !== 'APPROVED' ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/profile')}
+            style={[styles.kycBanner, overview.kycStatus === 'PENDING' && { backgroundColor: Palette.mint }]}>
+            <Icon
+              name={overview.kycStatus === 'PENDING' ? 'clock' : 'shield'}
+              size={24}
+              color={overview.kycStatus === 'PENDING' ? Palette.forest : Palette.ochreInk}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.kycTitle, overview.kycStatus === 'PENDING' && { color: Palette.forest }]}>
+                {overview.kycStatus === 'PENDING'
+                  ? 'Dein Ausweis wird geprüft'
+                  : overview.kycStatus === 'REJECTED'
+                    ? 'Prüfung abgelehnt'
+                    : 'Konto noch nicht freigeschaltet'}
+              </Text>
+              <Text style={[styles.kycText, overview.kycStatus === 'PENDING' && { color: Palette.forest }]}>
+                {overview.kycStatus === 'PENDING'
+                  ? 'Danach kannst du Geld senden und bezahlen.'
+                  : 'Tippe hier, um deinen Ausweis hochzuladen.'}
+              </Text>
+            </View>
+          </Pressable>
+        ) : null}
 
         <View style={styles.actions}>
           <ActionTile icon="send" label="Senden" onPress={() => router.push('/send')} />
@@ -194,6 +221,16 @@ const styles = StyleSheet.create({
   balanceCurrency: { fontFamily: FontFamily.displaySemi, fontSize: 20 },
   balanceError: { fontFamily: FontFamily.bodyMedium, fontSize: 15, color: Palette.white },
   balanceLoading: { alignSelf: 'flex-start', marginVertical: 12 },
+  kycBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: Radius.card,
+    backgroundColor: Palette.ochreSoft,
+  },
+  kycTitle: { fontFamily: FontFamily.bodySemi, fontSize: 15, color: Palette.ochreInk },
+  kycText: { fontFamily: FontFamily.body, fontSize: 13, color: Palette.ochreInk },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   tile: {
     flexGrow: 1,

@@ -26,9 +26,14 @@ export default function ProfilePage() {
   const [bioLoading, setBioLoading] = useState(false)
   
   const router = useRouter()
+  const [kycStatus, setKycStatus] = useState<string | null>(null)
 
   useEffect(() => {
     loadUserProfile()
+    fetch('/api/kyc', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && setKycStatus(data.kyc.kycStatus))
+      .catch(() => {})
   }, [])
 
   const loadUserProfile = async () => {
@@ -232,9 +237,19 @@ export default function ProfilePage() {
                         {provider === 'google' ? 'Google' : 'E-Mail'}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Konto-Status:</span>
-                      <span className="text-green-600 font-medium flex items-center gap-1"><Icon name="check" className="w-4 h-4" /> Aktiv</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Identität:</span>
+                      {kycStatus === 'APPROVED' ? (
+                        <span className="text-green-600 font-medium flex items-center gap-1"><Icon name="check" className="w-4 h-4" /> Verifiziert</span>
+                      ) : kycStatus === 'PENDING' ? (
+                        <span className="text-blue-600 font-medium flex items-center gap-1"><Icon name="clock" className="w-4 h-4" /> Wird geprüft</span>
+                      ) : kycStatus ? (
+                        <Link href="/verify" className="text-amber-700 font-medium hover:underline">
+                          {kycStatus === 'REJECTED' ? 'Abgelehnt – erneut einreichen' : 'Jetzt bestätigen'} →
+                        </Link>
+                      ) : (
+                        <span className="text-gray-400">…</span>
+                      )}
                     </div>
                   </div>
                 </div>

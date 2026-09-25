@@ -17,6 +17,9 @@ export async function POST(request: Request) {
       return apiError(401, 'authentication_error', 'Ungültiger oder fehlender API-Schlüssel')
     }
     const { merchant, apiKey } = auth
+    if (merchant.kycStatus !== 'APPROVED') {
+      return apiError(403, 'permission_error', 'Händlerkonto ist noch nicht verifiziert')
+    }
 
     const { success } = await ratelimit.limit(`api-checkout-${apiKey.id}`)
     if (!success) {

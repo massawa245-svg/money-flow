@@ -11,6 +11,7 @@ export default function DashboardPage() {
   const [balance, setBalance] = useState(0)
   const [transfers, setTransfers] = useState<TransferItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [kycStatus, setKycStatus] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -37,6 +38,7 @@ export default function DashboardPage() {
       if (data.success) {
         setTransfers(data.transfers || [])
         setBalance(data.balance || 0)
+        setKycStatus(data.kycStatus ?? null)
       }
     } catch (error) {
       console.error('Fehler:', error)
@@ -81,6 +83,29 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Hinweis: Konto noch nicht freigeschaltet */}
+      {kycStatus && kycStatus !== 'APPROVED' && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <Link
+            href="/verify"
+            className={`flex items-center gap-3 rounded-2xl border p-4 ${
+              kycStatus === 'PENDING' ? 'bg-blue-50 border-blue-200 text-blue-900' : 'bg-amber-50 border-amber-200 text-amber-900'
+            }`}
+          >
+            <Icon name={kycStatus === 'PENDING' ? 'clock' : 'shield'} className="w-6 h-6 shrink-0" />
+            <span className="flex-1">
+              <span className="font-semibold block">
+                {kycStatus === 'PENDING' ? 'Dein Ausweis wird geprüft' : kycStatus === 'REJECTED' ? 'Prüfung abgelehnt – bitte erneut einreichen' : 'Konto noch nicht freigeschaltet'}
+              </span>
+              <span className="text-sm opacity-80">
+                {kycStatus === 'PENDING' ? 'Danach kannst du Geld senden, bezahlen, ein- und auszahlen.' : 'Bestätige deine Identität, um Geld zu senden und zu bezahlen.'}
+              </span>
+            </span>
+            {kycStatus !== 'PENDING' && <span className="font-semibold whitespace-nowrap">Jetzt bestätigen →</span>}
+          </Link>
+        </div>
+      )}
 
       {/* Schnellaktionen */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">

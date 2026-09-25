@@ -4,6 +4,7 @@ import { NextResponse, after } from 'next/server'
 import { ratelimit } from '@/lib/rate-limit'
 import { paymentProvider } from '@/lib/payment-provider'
 import { logAudit } from '@/lib/audit'
+import { requireVerified } from '@/lib/kyc'
 import { serializeCheckout } from '@/lib/checkout'
 import { dispatchWebhookEvent } from '@/lib/webhooks'
 
@@ -28,6 +29,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!payer) {
       return NextResponse.json({ error: 'Nutzer nicht gefunden' }, { status: 404 })
     }
+
+    const blocked = requireVerified(payer)
+    if (blocked) return blocked
 
     const payment = await prisma.merchantPayment.findUnique({ where: { id } })
     if (!payment) {

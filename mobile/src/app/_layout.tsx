@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { LockScreen } from '@/components/lock-screen';
 import { Palette } from '@/constants/theme';
 import { SessionProvider, useSession } from '@/lib/auth-context';
 
@@ -39,7 +40,7 @@ export default function RootLayout() {
 }
 
 function RootNavigator({ ready }: { ready: boolean }) {
-  const { session, isLoading } = useSession();
+  const { session, isLoading, locked } = useSession();
   const showApp = ready && !isLoading;
 
   useEffect(() => {
@@ -48,6 +49,9 @@ function RootNavigator({ ready }: { ready: boolean }) {
 
   // Splash bleibt sichtbar, bis Fonts und Session geladen sind
   if (!showApp) return null;
+
+  // Eingeloggt, aber per Biometrie gesperrt: nichts von der App zeigen
+  if (session && locked) return <LockScreen />;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Palette.sand } }}>

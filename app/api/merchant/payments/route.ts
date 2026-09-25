@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { ratelimit } from '@/lib/rate-limit'
 import { validateMerchantPayment } from '@/lib/validator'
 import { logAudit } from '@/lib/audit'
+import { requireVerified } from '@/lib/kyc'
 
 const PAYMENT_TTL_MS = 5 * 60 * 1000 // Dynamischer QR ist 5 Minuten gültig
 
@@ -55,6 +56,9 @@ export async function POST(request: Request) {
     if (!merchant || merchant.role !== 'MERCHANT') {
       return NextResponse.json({ error: 'Kein Händler-Konto' }, { status: 403 })
     }
+
+    const blocked = requireVerified(merchant, 'Dein Händlerkonto ist noch nicht verifiziert. Bitte zuerst den Ausweis im Profil hochladen.')
+    if (blocked) return blocked
 
     // 🔒 IDEMPOTENCY: Kasse muss einen eigenen Key mitschicken (z.B. lokale Transaktions-ID),
     // damit ein Retry bei Netzwerkfehler nicht zwei Zahlungsanforderungen erzeugt.

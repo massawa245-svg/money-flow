@@ -1,8 +1,9 @@
-﻿import { getAuthenticatedUser } from '@/lib/auth'
+import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { ratelimit } from '@/lib/rate-limit'
 import { validateTransfer } from '@/lib/validator'
+import { requireVerified } from '@/lib/kyc'
 
 // GET - Transfers und Balance abrufen (für Dashboard)
 export async function GET(request: Request) {
@@ -100,7 +101,8 @@ export async function GET(request: Request) {
       success: true,
       transfers: activity,
       balance: dbUser.balance,
-      currency: dbUser.currency
+      currency: dbUser.currency,
+      kycStatus: dbUser.kycStatus
     })
 
   } catch (error: any) {
@@ -156,6 +158,10 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    // 🔒 5. Nur verifizierte Konten dürfen Geld senden
+    const blocked = requireVerified(await prisma.user.findUnique({ where: { email: user.email! } }))
+    if (blocked) return blocked
 
     // Transfer mit Prisma durchführen
     const transfer = await prisma.$transaction(async (tx) => {
