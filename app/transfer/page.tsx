@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { Icon } from "@/components/Icon"
 
 export default function TransferPage() {
   const [recipient, setRecipient] = useState("")
@@ -71,12 +72,12 @@ export default function TransferPage() {
       })
 
       const data = await response.json()
-      console.log("📥 Response:", data)
+      console.log("Response:", data)
 
       if (response.ok) {
         setStatus({
           type: 'success',
-          message: data.message || '✅ Überweisung erfolgreich!'
+          message: data.message || 'Überweisung erfolgreich!'
         })
         setRecipient("")
         setAmount("")
@@ -89,7 +90,7 @@ export default function TransferPage() {
         })
       }
     } catch (error) {
-      console.error("❌ Fetch Error:", error)
+      console.error("Fetch Error:", error)
       setStatus({
         type: 'error',
         message: 'Verbindungsfehler. Bitte versuche es später erneut.'
@@ -108,7 +109,7 @@ export default function TransferPage() {
           <div className="relative">
             <div className="w-20 h-20 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-2xl">💸</span>
+              <Icon name="send" className="w-6 h-6" />
             </div>
           </div>
           <p className="mt-4 text-gray-600">Lade Transfer-Seite...</p>
@@ -140,7 +141,7 @@ export default function TransferPage() {
           <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-8 py-6">
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
-                <span className="text-3xl">💸</span>
+                <Icon name="send" className="w-8 h-8" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">Geld senden</h1>
@@ -159,7 +160,7 @@ export default function TransferPage() {
                 status.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
                 'bg-red-50 text-red-800 border border-red-200'
               }`}>
-                <span className="text-2xl">{status.type === 'success' ? '✅' : '❌'}</span>
+                <Icon name={status.type === 'success' ? 'check' : 'alert'} className="w-6 h-6 shrink-0" />
                 <p>{status.message}</p>
               </div>
             )}
@@ -172,7 +173,7 @@ export default function TransferPage() {
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
-                    📧
+                    <Icon name="mail" className="w-5 h-5" />
                   </span>
                   <input
                     type="email"
@@ -192,7 +193,7 @@ export default function TransferPage() {
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
-                    💶
+                    €
                   </span>
                   <input
                     type="number"
@@ -228,14 +229,14 @@ export default function TransferPage() {
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
-                    📝
+                    <Icon name="note" className="w-5 h-5" />
                   </span>
                   <input
                     type="text"
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
                     className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all"
-                    placeholder="z.B. Geburtstagsgeschenk 🎁"
+                    placeholder="z. B. Geburtstagsgeschenk"
                     maxLength={100}
                   />
                 </div>
@@ -256,7 +257,7 @@ export default function TransferPage() {
                     Wird gesendet...
                   </span>
                 ) : (
-                  "💸 Geld senden"
+                  "Geld senden"
                 )}
               </button>
             </form>

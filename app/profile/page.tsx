@@ -1,10 +1,11 @@
-﻿"use client"
+"use client"
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
 import { WebAuthnService } from "@/lib/webauthn"
+import { Icon } from "@/components/Icon"
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null)
@@ -71,7 +72,7 @@ export default function ProfilePage() {
 
       setMessage({
         type: 'success',
-        text: '✅ Profil erfolgreich aktualisiert!'
+        text: 'Profil erfolgreich aktualisiert!'
       })
     } catch (error: any) {
       setMessage({
@@ -92,7 +93,7 @@ export default function ProfilePage() {
       setAvatarUrl(e.target?.result as string)
       setMessage({
         type: 'success',
-        text: '✅ Avatar aktualisiert'
+        text: 'Avatar aktualisiert'
       })
     }
     reader.readAsDataURL(file)
@@ -106,7 +107,7 @@ export default function ProfilePage() {
     if (result.success) {
       setMessage({
         type: 'success',
-        text: '✅ Biometrie erfolgreich eingerichtet!'
+        text: 'Biometrie erfolgreich eingerichtet!'
       })
       setBioRegistered(true)
     } else {
@@ -125,7 +126,7 @@ export default function ProfilePage() {
           <div className="relative">
             <div className="w-20 h-20 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-2xl">👤</span>
+              <Icon name="user" className="w-6 h-6" />
             </div>
           </div>
           <p className="mt-4 text-gray-600">Lade Profil...</p>
@@ -161,7 +162,7 @@ export default function ProfilePage() {
           <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-8 py-6">
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
-                <span className="text-3xl">👤</span>
+                <Icon name="user" className="w-8 h-8" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">Mein Profil</h1>
@@ -181,7 +182,7 @@ export default function ProfilePage() {
                   ? 'bg-green-50 text-green-800 border border-green-200' 
                   : 'bg-red-50 text-red-800 border border-red-200'
               }`}>
-                <span className="text-2xl">{message.type === 'success' ? '✅' : '❌'}</span>
+                <Icon name={message.type === 'success' ? 'check' : 'alert'} className="w-6 h-6 shrink-0" />
                 <p>{message.text}</p>
               </div>
             )}
@@ -194,13 +195,13 @@ export default function ProfilePage() {
                   <div className="relative inline-block">
                     <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-4xl text-white mx-auto border-4 border-white shadow-xl">
                       {avatarUrl === "/default-avatar.png" ? (
-                        <span>👤</span>
+                        <Icon name="user" className="w-8 h-8" />
                       ) : (
                         <img src={avatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover" />
                       )}
                     </div>
                     <label htmlFor="avatar-upload" className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 transition shadow-lg">
-                      <span className="text-sm">📷</span>
+                      <Icon name="camera" className="w-4 h-4" />
                       <input
                         type="file"
                         id="avatar-upload"
@@ -217,7 +218,7 @@ export default function ProfilePage() {
                 {/* Konto-Info */}
                 <div className="bg-gray-50 p-6 rounded-2xl">
                   <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                    <span className="text-blue-600">📊</span>
+                    <Icon name="chart" className="w-5 h-5 text-blue-600" />
                     Konto-Informationen
                   </h3>
                   <div className="space-y-3 text-sm">
@@ -228,12 +229,12 @@ export default function ProfilePage() {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Login-Methode:</span>
                       <span className="font-medium flex items-center gap-1">
-                        {provider === 'google' ? '🔵 Google' : '✉️ Email'}
+                        {provider === 'google' ? 'Google' : 'E-Mail'}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Konto-Status:</span>
-                      <span className="text-green-600 font-medium">✅ Aktiv</span>
+                      <span className="text-green-600 font-medium flex items-center gap-1"><Icon name="check" className="w-4 h-4" /> Aktiv</span>
                     </div>
                   </div>
                 </div>
@@ -242,13 +243,13 @@ export default function ProfilePage() {
                 {bioAvailable && (
                   <div className="bg-gradient-to-br from-purple-50 to-indigo-50 p-6 rounded-2xl border-2 border-purple-200">
                     <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                      <span className="text-purple-600">🔐</span>
+                      <Icon name="fingerprint" className="w-5 h-5 text-purple-600" />
                       Biometrische Anmeldung
                     </h3>
                     
                     {bioRegistered ? (
                       <div>
-                        <p className="text-green-600 mb-3">✅ Biometrie ist aktiviert</p>
+                        <p className="text-green-600 mb-3 flex items-center gap-1.5"><Icon name="check" className="w-4 h-4" /> Biometrie ist aktiviert</p>
                         <button
                           onClick={() => {/* Deaktivieren */}}
                           className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition"
@@ -266,7 +267,7 @@ export default function ProfilePage() {
                           disabled={bioLoading}
                           className="w-full bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
                         >
-                          {bioLoading ? 'Wird eingerichtet...' : '🖐️ Biometrie einrichten'}
+                          {bioLoading ? 'Wird eingerichtet...' : 'Biometrie einrichten'}
                         </button>
                       </div>
                     )}
@@ -284,7 +285,7 @@ export default function ProfilePage() {
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
-                        👤
+                        <Icon name="user" className="w-5 h-5" />
                       </span>
                       <input
                         type="text"
@@ -303,7 +304,7 @@ export default function ProfilePage() {
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
-                        📞
+                        <Icon name="phone" className="w-5 h-5" />
                       </span>
                       <input
                         type="tel"
@@ -322,7 +323,7 @@ export default function ProfilePage() {
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-3 text-gray-400 text-xl">
-                        📍
+                        <Icon name="pin" className="w-5 h-5" />
                       </span>
                       <textarea
                         value={address}
@@ -341,7 +342,7 @@ export default function ProfilePage() {
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
-                        🎂
+                        <Icon name="calendar" className="w-5 h-5" />
                       </span>
                       <input
                         type="date"
@@ -368,7 +369,7 @@ export default function ProfilePage() {
                           Wird gespeichert...
                         </span>
                       ) : (
-                        "💾 Änderungen speichern"
+                        "Änderungen speichern"
                       )}
                     </button>
                     
@@ -384,7 +385,7 @@ export default function ProfilePage() {
                 {/* Sicherheitsbereich */}
                 <div className="mt-8 pt-6 border-t-2 border-gray-100">
                   <h3 className="font-semibold text-gray-700 mb-4 flex items-center gap-2">
-                    <span className="text-red-500">🔒</span>
+                    <Icon name="lock" className="w-5 h-5 text-red-500" />
                     Sicherheitseinstellungen
                   </h3>
                   
@@ -394,7 +395,7 @@ export default function ProfilePage() {
                       className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition flex items-center gap-3"
                     >
                       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-                        🔑
+                        <Icon name="key" className="w-5 h-5" />
                       </div>
                       <div>
                         <p className="font-semibold">Passwort ändern</p>
@@ -407,7 +408,7 @@ export default function ProfilePage() {
                       className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition flex items-center gap-3"
                     >
                       <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
-                        📱
+                        <Icon name="device" className="w-5 h-5" />
                       </div>
                       <div>
                         <p className="font-semibold">2FA aktivieren</p>
@@ -420,7 +421,7 @@ export default function ProfilePage() {
                       className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition flex items-center gap-3"
                     >
                       <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-                        💻
+                        <Icon name="laptop" className="w-5 h-5" />
                       </div>
                       <div>
                         <p className="font-semibold">Aktive Sitzungen</p>
@@ -433,7 +434,7 @@ export default function ProfilePage() {
                       className="p-4 bg-red-50 rounded-xl hover:bg-red-100 transition flex items-center gap-3"
                     >
                       <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-red-600">
-                        ⚠️
+                        <Icon name="alert" className="w-5 h-5" />
                       </div>
                       <div>
                         <p className="font-semibold text-red-600">Konto löschen</p>

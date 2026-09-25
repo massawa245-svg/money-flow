@@ -1,12 +1,13 @@
 "use client"
 import Link from "next/link"
+import { Icon } from "@/components/Icon"
 
 export default function Footer() {
   return (
     <footer className="bg-gradient-to-r from-blue-600 to-blue-800 text-white mt-auto">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Footer Links */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-6">
           <div>
             <h3 className="font-bold mb-3">Über uns</h3>
             <ul className="space-y-2 text-sm text-blue-100">
@@ -34,15 +35,6 @@ export default function Footer() {
             </ul>
           </div>
           
-          <div>
-            <h3 className="font-bold mb-3">Folge uns</h3>
-            <div className="flex space-x-4 text-2xl">
-              <a href="#" className="hover:text-white">📱</a>
-              <a href="#" className="hover:text-white">💬</a>
-              <a href="#" className="hover:text-white">📘</a>
-              <a href="#" className="hover:text-white">🐦</a>
-            </div>
-          </div>
         </div>
 
         {/* Trennlinie */}
@@ -50,9 +42,8 @@ export default function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-center text-sm text-blue-100">
             <p>© 2026 MoneyFlow. Alle Rechte vorbehalten.</p>
             <div className="flex gap-4 mt-2 md:mt-0">
-              <span>🇩🇪 Deutschland</span>
-              <span>💳 Sicher bezahlen</span>
-              <span>🔒 SSL verschlüsselt</span>
+              <span className="flex items-center gap-1.5"><Icon name="shield" className="w-4 h-4" /> Sicher bezahlen</span>
+              <span className="flex items-center gap-1.5"><Icon name="lock" className="w-4 h-4" /> SSL verschlüsselt</span>
             </div>
           </div>
         </div>

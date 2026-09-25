@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import { Icon } from "@/components/Icon"
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -25,7 +26,9 @@ export default function Header() {
         <div className="px-4 py-3 flex justify-between items-center">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">💰</span>
+            <span className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center">
+              <Icon name="wallet" className="w-5 h-5" />
+            </span>
             <span className="font-bold text-xl">MoneyFlow</span>
           </Link>
 
@@ -50,77 +53,86 @@ export default function Header() {
             <div className="px-4 py-3 space-y-2">
               <Link 
                 href="/" 
-                className="block py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
+                className="flex items-center gap-3 py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
                 onClick={() => setIsMenuOpen(false)}
               >
-                🏠 Home
+                <Icon name="home" className="w-5 h-5 opacity-80" />
+                Startseite
               </Link>
               {user ? (
                 <>
                   <Link 
                     href="/dashboard" 
-                    className="block py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
+                    className="flex items-center gap-3 py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    📊 Dashboard
+                    <Icon name="chart" className="w-5 h-5 opacity-80" />
+                    Übersicht
                   </Link>
                   <Link 
                     href="/transfer" 
-                    className="block py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
+                    className="flex items-center gap-3 py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    💸 Send Money
+                    <Icon name="send" className="w-5 h-5 opacity-80" />
+                    Geld senden
                   </Link>
                   <Link 
                     href="/receive" 
-                    className="block py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
+                    className="flex items-center gap-3 py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    📥 Receive
+                    <Icon name="receive" className="w-5 h-5 opacity-80" />
+                    Geld empfangen
                   </Link>
                   <Link 
                     href="/withdraw" 
-                    className="block py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
+                    className="flex items-center gap-3 py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    🏧 Withdraw
+                    <Icon name="withdraw" className="w-5 h-5 opacity-80" />
+                    Auszahlen
                   </Link>
                   <Link 
                     href="/add-money" 
-                    className="block py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
+                    className="flex items-center gap-3 py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    💰 Add Money
+                    <Icon name="plus" className="w-5 h-5 opacity-80" />
+                    Einzahlen
                   </Link>
                   <Link 
                     href="/profile" 
-                    className="block py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
+                    className="flex items-center gap-3 py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    👤 Profile
+                    <Icon name="user" className="w-5 h-5 opacity-80" />
+                    Profil
                   </Link>
                   <div className="pt-2 mt-2 border-t border-blue-500">
                     <p className="text-sm text-blue-200 mb-2 px-3">
-                      👋 {user.email}
+                      Angemeldet als {user.email}
                     </p>
                     <button
                       onClick={() => {
                         handleLogout()
                         setIsMenuOpen(false)
                       }}
-                      className="w-full text-left py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
+                      className="w-full flex items-center gap-3 text-left py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
                     >
-                      🚪 Logout
+                      <Icon name="logout" className="w-5 h-5 opacity-80" />
+                    Abmelden
                     </button>
                   </div>
                 </>
               ) : (
                 <Link 
                   href="/login" 
-                  className="block py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
+                  className="flex items-center gap-3 py-2 text-white hover:bg-blue-600 px-3 rounded-lg transition"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  🔐 Login
+                  <Icon name="login" className="w-5 h-5 opacity-80" />
+                  Anmelden
                 </Link>
               )}
             </div>

@@ -73,7 +73,7 @@ export default function AddMoneyPage() {
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <h1 className="text-2xl font-bold mb-2">💰 Geld einzahlen</h1>
+          <h1 className="text-2xl font-bold mb-2">Geld einzahlen</h1>
           <p className="text-gray-600 mb-4">Lade dein Konto auf</p>
 
           <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm rounded-lg p-3 mb-8">

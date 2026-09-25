@@ -4,6 +4,7 @@ import { QRCodeSVG } from "qrcode.react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { Icon } from "@/components/Icon"
 
 type MerchantPayment = {
   id: string
@@ -16,12 +17,12 @@ type MerchantPayment = {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  PENDING: "⏳ Wartet auf Scan",
-  PROCESSING: "🔄 Wird bestätigt...",
-  COMPLETED: "✅ Bezahlt",
-  FAILED: "❌ Fehlgeschlagen",
-  EXPIRED: "⌛ Abgelaufen",
-  CANCELLED: "🚫 Storniert",
+  PENDING: "Wartet auf Scan",
+  PROCESSING: "Wird bestätigt...",
+  COMPLETED: "Bezahlt",
+  FAILED: "Fehlgeschlagen",
+  EXPIRED: "Abgelaufen",
+  CANCELLED: "Storniert",
 }
 
 const TERMINAL_STATUSES = ["COMPLETED", "FAILED", "EXPIRED", "CANCELLED"]
@@ -175,7 +176,7 @@ export default function MerchantPage() {
           <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-8 py-6">
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
-                <span className="text-3xl">🏪</span>
+                <Icon name="store" className="w-8 h-8 text-white" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">Kasse</h1>
@@ -195,7 +196,7 @@ export default function MerchantPage() {
                   disabled={enrolling}
                   className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50"
                 >
-                  {enrolling ? 'Aktiviere...' : '🏪 Als Händler aktivieren (Test)'}
+                  {enrolling ? 'Aktiviere...' : 'Als Händler aktivieren (Test)'}
                 </button>
                 <p className="text-xs text-gray-400">
                   Nur für MVP-Tests: kein echtes Onboarding, keine Prüfung.
@@ -205,7 +206,7 @@ export default function MerchantPage() {
 
             {isMerchant && error && (
               <div className="mb-6 p-4 rounded-xl flex items-center gap-3 bg-red-50 text-red-800 border border-red-200">
-                <span className="text-2xl">❌</span>
+                <Icon name="alert" className="w-6 h-6" />
                 <p>{error}</p>
               </div>
             )}
@@ -248,7 +249,7 @@ export default function MerchantPage() {
                   disabled={creating}
                   className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50"
                 >
-                  {creating ? 'Erzeuge QR-Code...' : '📱 QR-Code erzeugen'}
+                  {creating ? 'Erzeuge QR-Code...' : 'QR-Code erzeugen'}
                 </button>
               </form>
             )}

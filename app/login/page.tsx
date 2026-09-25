@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { safeNext } from "@/lib/safe-next"
+import { Icon } from "@/components/Icon"
 
 // Ziel nach dem Login, z.B. zurück zur Bezahlseite
 function nextPath() {
@@ -117,7 +118,9 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="text-5xl mb-4">💰</div>
+          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-blue-600 text-white flex items-center justify-center">
+            <Icon name="wallet" className="w-7 h-7" />
+          </div>
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
             {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
+import { Icon } from "@/components/Icon"
 
 interface PaymentDetails {
   id: string
@@ -98,7 +99,7 @@ export default function PayPage() {
             </>
           ) : paid ? (
             <>
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-3xl">✓</div>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 text-green-600 flex items-center justify-center"><Icon name="check" className="w-8 h-8" strokeWidth={2.5} /></div>
               <h1 className="text-2xl font-bold text-green-600 mb-2">Bezahlt</h1>
               <p className="text-3xl font-bold mb-1">{formatted} {payment.currency}</p>
               <p className="text-gray-600 mb-6">an {payment.merchantName}</p>

@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { formatEuro, isOutgoing, transferKind, transferTitle, type TransferItem } from "@/lib/transfer-display"
+import { Icon, type IconName } from "@/components/Icon"
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
@@ -81,22 +82,22 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Quick Actions - Farbig & Größer für Desktop */}
+      {/* Schnellaktionen */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
           <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-6">
-            {[
-              { href: "/transfer", icon: "💸", label: "Senden", color: "from-blue-500 to-blue-600" },
-              { href: "/receive", icon: "📥", label: "Empfangen", color: "from-green-500 to-green-600" },
-              { href: "/withdraw", icon: "🏧", label: "Abheben", color: "from-orange-500 to-orange-600" },
-              { href: "/add-money", icon: "💰", label: "Aufladen", color: "from-purple-500 to-purple-600" },
-              { href: "/merchant", icon: "🏪", label: "Kasse", color: "from-pink-500 to-pink-600" },
-              { href: "/profile", icon: "👤", label: "Profil", color: "from-gray-500 to-gray-600" }
-            ].map((item, idx) => (
+            {([
+              { href: "/transfer", icon: "send", label: "Senden" },
+              { href: "/receive", icon: "receive", label: "Empfangen" },
+              { href: "/add-money", icon: "plus", label: "Einzahlen" },
+              { href: "/withdraw", icon: "withdraw", label: "Auszahlen" },
+              { href: "/merchant", icon: "store", label: "Kasse" },
+              { href: "/profile", icon: "user", label: "Profil" }
+            ] satisfies { href: string; icon: IconName; label: string }[]).map((item, idx) => (
               <Link key={idx} href={item.href} className="flex-1 min-w-[70px] sm:min-w-[100px] max-w-[100px] sm:max-w-[120px]">
                 <div className="flex flex-col items-center group cursor-pointer">
-                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${item.color} text-white flex items-center justify-center text-2xl sm:text-3xl shadow-md group-hover:scale-110 group-hover:shadow-lg transition-all duration-200`}>
-                    {item.icon}
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-100 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-colors duration-200">
+                    <Icon name={item.icon} className="w-6 h-6 sm:w-7 sm:h-7" />
                   </div>
                   <span className="text-xs sm:text-sm font-medium text-gray-700 mt-2 text-center">{item.label}</span>
                 </div>
@@ -152,7 +153,7 @@ export default function DashboardPage() {
                       <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${
                         isSent ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
                       }`}>
-                        <span className="text-sm sm:text-base">{isSent ? '⬆' : '⬇'}</span>
+                        <Icon name={isSent ? 'send' : 'receive'} className="w-4 h-4 sm:w-5 sm:h-5" />
                       </div>
                       <div>
                         <p className="font-medium text-gray-900 text-sm sm:text-base">
