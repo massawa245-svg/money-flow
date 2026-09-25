@@ -1,24 +1,35 @@
-﻿import { createClient } from '@/lib/supabase/server'
+﻿import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+import { ratelimit } from '@/lib/rate-limit'
+import { validateTransfer } from '@/lib/validator'
 
 // GET - Transfers und Balance abrufen (für Dashboard)
-export async function GET() {
-  console.log(" GET /api/transfer aufgerufen")
+export async function GET(request: Request) {
+  console.log("📡 GET /api/transfer aufgerufen")
   
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    // Web (Cookie) und Mobile-App (Bearer-Token)
+    const user = await getAuthenticatedUser(request)
     
     if (!user) {
-      console.error(' Kein User in Session gefunden')
+      console.error('❌ Kein User in Session gefunden')
       return NextResponse.json(
         { error: 'Nicht eingeloggt' },
         { status: 401 }
       )
     }
 
-    console.log(" User gefunden:", user.email)
+    console.log("✅ User gefunden:", user.email)
+
+    // 🔒 RATE LIMITING für GET
+    const { success } = await ratelimit.limit(`get-${user.id}`)
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Zu viele Anfragen. Bitte warte einen Moment.' },
+        { status: 429 }
+      )
+    }
 
     // User in Prisma finden oder erstellen
     let dbUser = await prisma.user.findUnique({
@@ -26,7 +37,7 @@ export async function GET() {
     })
 
     if (!dbUser) {
-      console.log(" User existiert nicht in Prisma, lege an...")
+      console.log("📝 User existiert nicht in Prisma, lege an...")
       dbUser = await prisma.user.create({
         data: {
           email: user.email!,
@@ -35,7 +46,7 @@ export async function GET() {
           currency: 'EUR'
         }
       })
-      console.log(" User angelegt mit ID:", dbUser.id)
+      console.log("✅ User angelegt mit ID:", dbUser.id)
     }
 
     const transfers = await prisma.transfer.findMany({
@@ -55,11 +66,12 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       transfers,
-      balance: dbUser.balance
+      balance: dbUser.balance,
+      currency: dbUser.currency
     })
 
   } catch (error: any) {
-    console.error(' Fehler in GET:', error)
+    console.error('❌ Fehler in GET:', error)
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
@@ -69,31 +81,58 @@ export async function GET() {
 
 // POST - Neuen Transfer erstellen
 export async function POST(request: Request) {
-  console.log(" POST /api/transfer aufgerufen")
+  console.log("📡 POST /api/transfer aufgerufen")
   
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    // Web (Cookie) und Mobile-App (Bearer-Token)
+    const user = await getAuthenticatedUser(request)
     
     if (!user) {
-      console.error(' Kein User in Session gefunden')
+      console.error('❌ Kein User in Session gefunden')
       return NextResponse.json(
         { error: 'Nicht eingeloggt' },
         { status: 401 }
       )
     }
 
+    // 🔒 1. RATE LIMITING
+    const { success } = await ratelimit.limit(`transfer-${user.id}`)
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Zu viele Anfragen. Bitte warte einen Moment.' },
+        { status: 429 }
+      )
+    }
+
+    // 📦 2. Daten aus Request holen
     const { recipientEmail, amount, reference } = await request.json()
+
+    // 🔒 3. INPUT VALIDIERUNG
+    const validationErrors = validateTransfer({ recipientEmail, amount, reference })
+    if (validationErrors.length > 0) {
+      return NextResponse.json(
+        { error: validationErrors.join(', ') },
+        { status: 400 }
+      )
+    }
+
+    // 🔒 4. Selbst-Transfer blockieren
+    if (recipientEmail === user.email) {
+      return NextResponse.json(
+        { error: 'Du kannst dir nicht selbst Geld senden' },
+        { status: 400 }
+      )
+    }
 
     // Transfer mit Prisma durchführen
     const transfer = await prisma.$transaction(async (tx) => {
-      // 1. Sender finden oder erstellen
+      // 5. Sender finden oder erstellen
       let sender = await tx.user.findUnique({
         where: { email: user.email! }
       })
       
       if (!sender) {
-        console.log(" Sender existiert nicht, lege an...")
+        console.log("📝 Sender existiert nicht, lege an...")
         sender = await tx.user.create({
           data: {
             email: user.email!,
@@ -105,24 +144,24 @@ export async function POST(request: Request) {
       
       if (sender.balance < amount) throw new Error('Nicht genügend Guthaben')
       
-      // 2. Recipient finden ODER ERSTELLEN! 
+      // 6. Recipient finden ODER ERSTELLEN
       let recipient = await tx.user.findUnique({
         where: { email: recipientEmail }
       })
       
       if (!recipient) {
-        console.log(" Empfänger existiert nicht, lege an...")
+        console.log("📝 Empfänger existiert nicht, lege an...")
         recipient = await tx.user.create({
           data: {
             email: recipientEmail,
             name: recipientEmail.split('@')[0],
-            balance: 1000.00 // Startguthaben für neuen User
+            balance: 1000.00
           }
         })
-        console.log(" Empfänger angelegt mit ID:", recipient.id)
+        console.log("✅ Empfänger angelegt mit ID:", recipient.id)
       }
       
-      // 3. Balances aktualisieren
+      // 7. Balances aktualisieren
       await tx.user.update({
         where: { id: sender.id },
         data: { balance: { decrement: amount } }
@@ -133,7 +172,7 @@ export async function POST(request: Request) {
         data: { balance: { increment: amount } }
       })
       
-      // 4. Transfer speichern
+      // 8. Transfer speichern
       return await tx.transfer.create({
         data: {
           amount,

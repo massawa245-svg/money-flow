@@ -12,10 +12,16 @@ export default function TransferPage() {
   const [status, setStatus] = useState<{type: 'success' | 'error', message: string} | null>(null)
   const [user, setUser] = useState<any>(null)
   const [checking, setChecking] = useState(true)
+  const [csrfToken, setCsrfToken] = useState("")
   const router = useRouter()
 
   useEffect(() => {
     checkUser()
+    // 🔒 CSRF Token holen
+    fetch('/api/csrf')
+      .then(res => res.json())
+      .then(data => setCsrfToken(data.token))
+      .catch(err => console.error('CSRF Token Error:', err))
   }, [])
 
   const checkUser = async () => {
@@ -33,27 +39,50 @@ export default function TransferPage() {
     setLoading(true)
     setStatus(null)
 
+    // Validierung (zusätzlich zur Server-Validierung)
+    if (!recipient || !recipient.includes('@')) {
+      setStatus({ type: 'error', message: 'Bitte eine gültige Email eingeben' })
+      setLoading(false)
+      return
+    }
+
+    const numAmount = parseFloat(amount)
+    if (isNaN(numAmount) || numAmount <= 0) {
+      setStatus({ type: 'error', message: 'Bitte einen gültigen Betrag eingeben' })
+      setLoading(false)
+      return
+    }
+
+    if (numAmount > 10000) {
+      setStatus({ type: 'error', message: 'Maximal 10.000€ pro Transaktion' })
+      setLoading(false)
+      return
+    }
+
     try {
-      console.log(" Sende Transfer mit Credentials...")
+      console.log("📤 Sende Transfer mit CSRF-Token...")
       
       const response = await fetch('/api/transfer', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', //  ABSOLUT NOTWENDIG!
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken  // 🔒 CSRF Schutz
+        },
+        credentials: 'include', // 🔒 Session Cookies
         body: JSON.stringify({
           recipientEmail: recipient,
-          amount: parseFloat(amount),
-          reference
+          amount: numAmount,
+          reference: reference || ''
         })
       })
 
       const data = await response.json()
-      console.log(" Response:", data)
+      console.log("📥 Response:", data)
 
       if (response.ok) {
         setStatus({
           type: 'success',
-          message: data.message || ' Überweisung erfolgreich!'
+          message: data.message || '✅ Überweisung erfolgreich!'
         })
         setRecipient("")
         setAmount("")
@@ -66,10 +95,10 @@ export default function TransferPage() {
         })
       }
     } catch (error) {
-      console.error(" Fetch Error:", error)
+      console.error("❌ Fetch Error:", error)
       setStatus({
         type: 'error',
-        message: 'Verbindungsfehler'
+        message: 'Verbindungsfehler. Bitte versuche es später erneut.'
       })
     } finally {
       setLoading(false)
@@ -85,7 +114,7 @@ export default function TransferPage() {
           <div className="relative">
             <div className="w-20 h-20 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-2xl"></span>
+              <span className="text-2xl">💸</span>
             </div>
           </div>
           <p className="mt-4 text-gray-600">Lade Transfer-Seite...</p>
@@ -117,7 +146,7 @@ export default function TransferPage() {
           <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-8 py-6">
             <div className="flex items-center gap-4">
               <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm">
-                <span className="text-3xl"></span>
+                <span className="text-3xl">💸</span>
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">Geld senden</h1>
@@ -136,7 +165,7 @@ export default function TransferPage() {
                 status.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
                 'bg-red-50 text-red-800 border border-red-200'
               }`}>
-                <span className="text-2xl">{status.type === 'success' ? '' : ''}</span>
+                <span className="text-2xl">{status.type === 'success' ? '✅' : '❌'}</span>
                 <p>{status.message}</p>
               </div>
             )}
@@ -149,7 +178,7 @@ export default function TransferPage() {
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
-                    
+                    📧
                   </span>
                   <input
                     type="email"
@@ -165,11 +194,11 @@ export default function TransferPage() {
               {/* Betrag */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Betrag ()
+                  Betrag (€)
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
-                    
+                    💶
                   </span>
                   <input
                     type="number"
@@ -192,7 +221,7 @@ export default function TransferPage() {
                       onClick={() => setAmount(amt.toString())}
                       className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
                     >
-                      {amt}
+                      €{amt}
                     </button>
                   ))}
                 </div>
@@ -205,14 +234,15 @@ export default function TransferPage() {
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">
-                    
+                    📝
                   </span>
                   <input
                     type="text"
                     value={reference}
                     onChange={(e) => setReference(e.target.value)}
                     className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all"
-                    placeholder="z.B. Geburtstagsgeschenk "
+                    placeholder="z.B. Geburtstagsgeschenk 🎁"
+                    maxLength={100}
                   />
                 </div>
               </div>
@@ -232,7 +262,7 @@ export default function TransferPage() {
                     Wird gesendet...
                   </span>
                 ) : (
-                  " Geld senden"
+                  "💸 Geld senden"
                 )}
               </button>
             </form>

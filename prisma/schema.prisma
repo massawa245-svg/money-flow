@@ -17,11 +17,15 @@ model User {
   emailVerified DateTime?
   balance       Float     @default(1000.00)
   currency      String    @default("EUR")
-  
+  role          String    @default("CUSTOMER") // CUSTOMER | MERCHANT
+
   sentTransfers     Transfer[] @relation("sender")
   receivedTransfers Transfer[] @relation("recipient")
   accounts          Account[]
-  
+  merchantPayments  MerchantPayment[] @relation("merchant")
+  paidPayments      MerchantPayment[] @relation("payer")
+  auditLogs         AuditLog[]
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -66,4 +70,68 @@ model Account {
 
   @@unique([provider, providerAccountId])
   @@index([userId])
+}
+
+// Ein QR-Zahlungswunsch, den ein Händler (Kasse) erzeugt.
+// Enthält NICHT die eigentliche Geldbewegung - die läuft über einen
+// regulierten Payment-Partner (siehe lib/payment-provider). Dieses Model
+// ist der Status-/Ledger-Eintrag dazu (payment_id, Status, Idempotency).
+model MerchantPayment {
+  id             String    @id @default(cuid())
+  merchantId     String
+  merchant       User      @relation("merchant", fields: [merchantId], references: [id])
+  payerId        String?
+  payer          User?     @relation("payer", fields: [payerId], references: [id])
+
+  amount         Float
+  currency       String    @default("ETB")
+  status         String    @default("PENDING") // PENDING | PROCESSING | COMPLETED | FAILED | EXPIRED | CANCELLED
+  reference      String?
+
+  idempotencyKey String    @unique
+  providerRef    String?
+  failureReason  String?
+
+  expiresAt      DateTime
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  completedAt    DateTime?
+
+  events         PaymentProviderEvent[]
+
+  @@index([merchantId])
+  @@index([payerId])
+  @@index([status])
+}
+
+// Eingehende Events vom Payment-Partner (Webhook). externalId + provider
+// sind eindeutig, damit doppelt zugestellte Webhooks nicht doppelt verarbeitet werden.
+model PaymentProviderEvent {
+  id         String   @id @default(cuid())
+  provider   String
+  externalId String
+  type       String
+  payload    String
+
+  paymentId  String?
+  payment    MerchantPayment? @relation(fields: [paymentId], references: [id])
+
+  createdAt  DateTime @default(now())
+
+  @@unique([provider, externalId])
+  @@index([paymentId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  details   String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
 }

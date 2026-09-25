@@ -14,37 +14,52 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
+            // 🔒 SICHERE COOKIES ERZWINGEN
+            const secureOptions = {
+              ...options,
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax' as const,
+              maxAge: 60 * 60 * 24 * 7 // 7 Tage
+            }
             request.cookies.set(name, value)
             response = NextResponse.next({ request })
-            response.cookies.set(name, value, options)
+            response.cookies.set(name, value, secureOptions)
           })
         },
       },
     }
   )
-   const { data: { user } } = await supabase.auth.getUser()
-
+  
+  const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
 
   console.log(`[Middleware] ${pathname} - User: ${user?.email || 'nicht eingeloggt'}`)
 
-  // ÖFFENTLICHE ROUTEN (KEIN LOGIN NÖTIG)
+  // ✅ ÖFFENTLICHE ROUTEN (KEIN LOGIN NÖTIG)
   const isPublicPath = 
     pathname === '/' || 
     pathname === '/login' || 
     pathname === '/auth/callback' ||
-    pathname === '/api/test' ||  // API-Routen erlauben
-    pathname.startsWith('/api/')  // ALLE API-Routen erlauben
+    pathname === '/add-money/success' ||  // 🔥 WICHTIG!
+    pathname.startsWith('/api/')          // API-Routen erlauben
 
-  // GESCHÜTZTE ROUTEN (LOGIN NÖTIG)
+  // ✅ GESCHÜTZTE ROUTEN (LOGIN NÖTIG)
   const isProtectedPage = 
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/transfer') ||
     pathname.startsWith('/profile') ||
     pathname.startsWith('/transactions') ||
-    pathname.startsWith('/add-money') ||
+    pathname.startsWith('/add-money') ||   // Add Money ist geschützt (außer Success)
     pathname.startsWith('/withdraw') ||
-    pathname.startsWith('/receive')
+    pathname.startsWith('/receive') ||
+    pathname.startsWith('/merchant')
+
+  // 🔓 Öffentliche Routen immer durchlassen
+  if (isPublicPath) {
+    console.log(`[Middleware] 🔓 Öffentliche Route: ${pathname}`)
+    return response
+  }
 
   // ❌ Nicht eingeloggt + geschützte Seite → redirect
   if (!user && isProtectedPage) {
@@ -72,7 +87,8 @@ export const config = {
     '/add-money/:path*',
     '/withdraw/:path*',
     '/receive/:path*',
+    '/merchant/:path*',
     '/auth/callback',
-    '/api/:path*',  // API-Routen im matcher!
+    '/api/:path*',
   ],
 }

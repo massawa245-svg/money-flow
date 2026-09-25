@@ -97,6 +97,7 @@ export default function DashboardPage() {
               { href: "/receive", icon: "📥", label: "Empfangen", color: "from-green-500 to-green-600" },
               { href: "/withdraw", icon: "🏧", label: "Abheben", color: "from-orange-500 to-orange-600" },
               { href: "/add-money", icon: "💰", label: "Aufladen", color: "from-purple-500 to-purple-600" },
+              { href: "/merchant", icon: "🏪", label: "Kasse", color: "from-pink-500 to-pink-600" },
               { href: "/profile", icon: "👤", label: "Profil", color: "from-gray-500 to-gray-600" }
             ].map((item, idx) => (
               <Link key={idx} href={item.href} className="flex-1 min-w-[70px] sm:min-w-[100px] max-w-[100px] sm:max-w-[120px]">
