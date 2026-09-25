@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "Africa Wallet",
+    "slug": "africa-wallet",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "africawallet",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Wird benötigt, um QR-Codes zum Bezahlen zu scannen.",
+        "NSFaceIDUsageDescription": "Wird benötigt, um Zahlungen per Face ID zu bestätigen."
+      },
+      "bundleIdentifier": "com.africawallet.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1F4D3A",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.africawallet.app",
+      "versionCode": 1
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Wird benötigt, um QR-Codes zum Bezahlen zu scannen."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1F4D3A",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Wird benötigt, um Zahlungen per Face ID zu bestätigen."
+        }
+      ],
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
