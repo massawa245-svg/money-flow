@@ -1,8 +1,14 @@
-﻿"use client"
+"use client"
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { safeNext } from "@/lib/safe-next"
+
+// Ziel nach dem Login, z.B. zurück zur Bezahlseite
+function nextPath() {
+  return safeNext(new URLSearchParams(window.location.search).get("next"))
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -19,8 +25,7 @@ export default function LoginPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
-        // Wenn eingeloggt  direkt zum Dashboard
-        router.push('/dashboard')
+        router.push(nextPath())
       } else {
         setChecking(false)
       }
@@ -65,7 +70,7 @@ export default function LoginPage() {
         if (error) throw error
         
         if (data.user) {
-          router.push("/dashboard")
+          router.push(nextPath())
           router.refresh()
         }
       }

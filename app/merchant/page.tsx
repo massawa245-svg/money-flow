@@ -91,7 +91,8 @@ export default function MerchantPage() {
           'Idempotency-Key': idempotencyKeyRef.current
         },
         credentials: 'include',
-        body: JSON.stringify({ amount: numAmount, currency: 'ETB', reference: reference || '' })
+        // Währung legt der Server fest (Kontowährung des Händlers)
+        body: JSON.stringify({ amount: numAmount, reference: reference || '' })
       })
 
       const data = await res.json()
@@ -200,7 +201,7 @@ export default function MerchantPage() {
               <form onSubmit={handleCreatePayment} className="space-y-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Betrag (ETB)
+                    Betrag
                   </label>
                   <input
                     type="number"
@@ -252,7 +253,8 @@ export default function MerchantPage() {
 
                 {payment.status === 'PENDING' && (
                   <div className="flex justify-center p-6 bg-gray-50 rounded-2xl">
-                    <QRCodeSVG value={payment.id} size={220} />
+                    {/* Voller Link: App-Scanner nimmt die ID am Ende, normale Handy-Kamera öffnet die Web-Bezahlseite */}
+                    <QRCodeSVG value={`${window.location.origin}/pay/${payment.id}`} size={220} />
                   </div>
                 )}
 

@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
@@ -12,16 +12,14 @@ export default function TransferPage() {
   const [status, setStatus] = useState<{type: 'success' | 'error', message: string} | null>(null)
   const [user, setUser] = useState<any>(null)
   const [checking, setChecking] = useState(true)
-  const [csrfToken, setCsrfToken] = useState("")
   const router = useRouter()
 
   useEffect(() => {
     checkUser()
-    // 🔒 CSRF Token holen
-    fetch('/api/csrf')
-      .then(res => res.json())
-      .then(data => setCsrfToken(data.token))
-      .catch(err => console.error('CSRF Token Error:', err))
+    // Vorausfüllen aus einem Zahlungslink von "Geld empfangen" (/transfer?to=...&amount=...)
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('to')) setRecipient(params.get('to')!)
+    if (params.get('amount')) setAmount(params.get('amount')!)
   }, [])
 
   const checkUser = async () => {
@@ -60,14 +58,10 @@ export default function TransferPage() {
     }
 
     try {
-      console.log("📤 Sende Transfer mit CSRF-Token...")
-      
       const response = await fetch('/api/transfer', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken  // 🔒 CSRF Schutz
-        },
+        // CSRF: Session-Cookies sind SameSite=Lax und JSON-POSTs von fremden Seiten scheitern am CORS-Preflight
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // 🔒 Session Cookies
         body: JSON.stringify({
           recipientEmail: recipient,

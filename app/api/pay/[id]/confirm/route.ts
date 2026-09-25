@@ -6,8 +6,8 @@ import { paymentProvider } from '@/lib/payment-provider'
 import { logAudit } from '@/lib/audit'
 
 // POST - Kunde bestätigt die Zahlung (nach Biometric-Check in der App).
-// Die eigentliche Geldbewegung läuft über paymentProvider (regulierter Partner),
-// dieser Handler pflegt nur den Status-/Ledger-Eintrag.
+// ⚠️ TESTMODUS: paymentProvider ist ein Mock; das Guthaben wird nur in der
+// Datenbank vom Kunden zum Händler umgebucht, es fließt kein echtes Geld.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
@@ -40,6 +40,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'QR-Code ist abgelaufen' }, { status: 410 })
     }
 
+    if (payment.merchantId === payer.id) {
+      return NextResponse.json({ error: 'Du kannst nicht an dich selbst zahlen' }, { status: 400 })
+    }
+
+    if (payment.currency !== payer.currency) {
+      return NextResponse.json(
+        { error: `Währung passt nicht: Zahlung in ${payment.currency}, dein Konto in ${payer.currency}` },
+        { status: 400 }
+      )
+    }
+
+    // Vorab-Prüfung, damit die Zahlung bei zu wenig Guthaben PENDING bleibt und erneut versucht werden kann
+    if (payer.balance < payment.amount) {
+      return NextResponse.json({ error: 'Nicht genügend Guthaben' }, { status: 400 })
+    }
+
     // 🔒 Optimistischer Lock: nur EIN Request darf PENDING -> PROCESSING schaffen.
     // Verhindert doppelte Bestätigung bei Doppelklick/parallelen Requests.
     const claimed = await prisma.merchantPayment.updateMany({
@@ -58,20 +74,52 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       currency: payment.currency
     })
 
-    const updated = await prisma.merchantPayment.update({
-      where: { id: payment.id },
-      data: result.success
-        ? { status: 'COMPLETED', providerRef: result.providerRef, completedAt: new Date() }
-        : { status: 'FAILED', failureReason: result.failureReason || 'Vom Payment-Partner abgelehnt' }
+    if (!result.success) {
+      const failed = await prisma.merchantPayment.update({
+        where: { id: payment.id },
+        data: { status: 'FAILED', failureReason: result.failureReason || 'Vom Payment-Partner abgelehnt' }
+      })
+      await logAudit({
+        userId: payer.id,
+        action: 'merchant_payment_failed',
+        details: { paymentId: payment.id, amount: payment.amount, currency: payment.currency }
+      })
+      return NextResponse.json({ success: false, payment: failed })
+    }
+
+    // Guthaben umbuchen: Abbuchung nur, wenn das Guthaben im selben Moment noch reicht
+    const updated = await prisma.$transaction(async (tx) => {
+      const debited = await tx.user.updateMany({
+        where: { id: payer.id, balance: { gte: payment.amount } },
+        data: { balance: { decrement: payment.amount } }
+      })
+      if (debited.count === 0) throw new Error('INSUFFICIENT_FUNDS')
+
+      await tx.user.update({
+        where: { id: payment.merchantId },
+        data: { balance: { increment: payment.amount } }
+      })
+
+      return tx.merchantPayment.update({
+        where: { id: payment.id },
+        data: { status: 'COMPLETED', providerRef: result.providerRef, completedAt: new Date() }
+      })
+    }).catch(async (error) => {
+      // Zahlung wieder freigeben, damit der Kunde es erneut versuchen kann
+      await prisma.merchantPayment.updateMany({
+        where: { id: payment.id, status: 'PROCESSING' },
+        data: { status: 'PENDING', payerId: null }
+      })
+      throw error.message === 'INSUFFICIENT_FUNDS' ? new Error('Nicht genügend Guthaben') : error
     })
 
     await logAudit({
       userId: payer.id,
-      action: result.success ? 'merchant_payment_completed' : 'merchant_payment_failed',
+      action: 'merchant_payment_completed',
       details: { paymentId: payment.id, amount: payment.amount, currency: payment.currency }
     })
 
-    return NextResponse.json({ success: result.success, payment: updated })
+    return NextResponse.json({ success: true, payment: updated })
   } catch (error: any) {
     console.error('❌ Fehler in POST /api/pay/[id]/confirm:', error)
     return NextResponse.json({ error: error.message || 'Bestätigung fehlgeschlagen' }, { status: 400 })

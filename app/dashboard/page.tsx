@@ -1,22 +1,14 @@
-﻿"use client"
+"use client"
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-
-interface Transfer {
-  id: string
-  amount: number
-  reference: string | null
-  createdAt: string
-  sender: { email: string }
-  recipient: { email: string }
-}
+import { formatEuro, isOutgoing, transferKind, transferTitle, type TransferItem } from "@/lib/transfer-display"
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [balance, setBalance] = useState(0)
-  const [transfers, setTransfers] = useState<Transfer[]>([])
+  const [transfers, setTransfers] = useState<TransferItem[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
@@ -52,9 +44,10 @@ export default function DashboardPage() {
     }
   }
 
+  const kinds = transfers.map(t => ({ t, kind: transferKind(t, user?.email) }))
   const stats = {
-    sent: transfers.filter(t => t.sender.email === user?.email).reduce((sum, t) => sum + t.amount, 0),
-    received: transfers.filter(t => t.recipient.email === user?.email).reduce((sum, t) => sum + t.amount, 0),
+    sent: kinds.filter(k => k.kind === 'sent').reduce((sum, k) => sum + k.t.amount, 0),
+    received: kinds.filter(k => k.kind === 'received').reduce((sum, k) => sum + k.t.amount, 0),
     count: transfers.length
   }
 
@@ -118,18 +111,15 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5">
             <p className="text-gray-500 text-xs sm:text-sm mb-1">Gesendet</p>
-            <p className="text-xl sm:text-2xl font-bold text-gray-900">€ {stats.sent.toFixed(2)}</p>
-            <p className="text-xs text-green-600 mt-2">+12% diesen Monat</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">€ {formatEuro(stats.sent)}</p>
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5">
             <p className="text-gray-500 text-xs sm:text-sm mb-1">Empfangen</p>
-            <p className="text-xl sm:text-2xl font-bold text-gray-900">€ {stats.received.toFixed(2)}</p>
-            <p className="text-xs text-green-600 mt-2">+8% diesen Monat</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">€ {formatEuro(stats.received)}</p>
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5">
             <p className="text-gray-500 text-xs sm:text-sm mb-1">Transaktionen</p>
             <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.count}</p>
-            <p className="text-xs text-gray-500 mt-2">+{stats.count} insgesamt</p>
           </div>
         </div>
       </div>
@@ -153,8 +143,8 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
-              {transfers.slice(0, 5).map((t) => {
-                const isSent = t.sender.email === user?.email
+              {kinds.slice(0, 5).map(({ t, kind }) => {
+                const isSent = isOutgoing(kind)
                 const date = new Date(t.createdAt)
                 return (
                   <div key={t.id} className="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between hover:bg-gray-50 transition">
@@ -166,7 +156,7 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900 text-sm sm:text-base">
-                          {isSent ? 'An ' + t.recipient.email.split('@')[0] : 'Von ' + t.sender.email.split('@')[0]}
+                          {transferTitle(t, kind)}
                         </p>
                         <p className="text-xs text-gray-500">
                           {date.toLocaleDateString('de-DE')} {t.reference && `· ${t.reference}`}
@@ -174,7 +164,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <p className={`font-bold text-sm sm:text-base ${isSent ? 'text-red-600' : 'text-green-600'}`}>
-                      {isSent ? '-' : '+'} € {t.amount.toFixed(2)}
+                      {isSent ? '−' : '+'} € {formatEuro(t.amount)}
                     </p>
                   </div>
                 )

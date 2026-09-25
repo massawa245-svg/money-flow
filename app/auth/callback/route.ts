@@ -1,5 +1,6 @@
-﻿import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { safeNext } from '@/lib/safe-next'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -11,7 +12,7 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
-      return NextResponse.redirect(`${origin}/dashboard`)
+      return NextResponse.redirect(`${origin}${safeNext(requestUrl.searchParams.get('next'))}`)
     }
   }
 

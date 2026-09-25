@@ -1,5 +1,6 @@
-﻿import { createServerClient } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { safeNext } from '@/lib/safe-next'
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request })
@@ -53,7 +54,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/add-money') ||   // Add Money ist geschützt (außer Success)
     pathname.startsWith('/withdraw') ||
     pathname.startsWith('/receive') ||
-    pathname.startsWith('/merchant')
+    pathname.startsWith('/merchant') ||
+    pathname.startsWith('/pay')
 
   // 🔓 Öffentliche Routen immer durchlassen
   if (isPublicPath) {
@@ -64,13 +66,15 @@ export async function middleware(request: NextRequest) {
   // ❌ Nicht eingeloggt + geschützte Seite → redirect
   if (!user && isProtectedPage) {
     console.log(`[Middleware] 🔒 Nicht eingeloggt auf ${pathname} -> /login`)
-    return NextResponse.redirect(new URL('/login', request.url))
+    const loginUrl = new URL('/login', request.url)
+    loginUrl.searchParams.set('next', pathname + request.nextUrl.search)
+    return NextResponse.redirect(loginUrl)
   }
 
   // ✅ Eingeloggt + Login-Seite → redirect
   if (user && pathname === '/login') {
     console.log(`[Middleware] ✅ Eingeloggt auf /login -> /dashboard`)
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return NextResponse.redirect(new URL(safeNext(request.nextUrl.searchParams.get('next')), request.url))
   }
 
   return response
@@ -88,6 +92,7 @@ export const config = {
     '/withdraw/:path*',
     '/receive/:path*',
     '/merchant/:path*',
+    '/pay/:path*',
     '/auth/callback',
     '/api/:path*',
   ],
