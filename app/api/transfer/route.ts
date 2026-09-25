@@ -63,9 +63,42 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' }
     })
 
+    // Abgeschlossene QR-/Checkout-Zahlungen liegen in einer eigenen Tabelle. Sie werden im
+    // Transfer-Format angehängt (Kunde = sender, Händler = recipient), damit App und Web sie
+    // ohne Änderung als "Gesendet"/"Erhalten" anzeigen.
+    const merchantPayments = await prisma.merchantPayment.findMany({
+      where: {
+        status: 'COMPLETED',
+        OR: [{ payerId: dbUser.id }, { merchantId: dbUser.id }]
+      },
+      include: {
+        payer: { select: { email: true, name: true } },
+        merchant: { select: { email: true, name: true } }
+      },
+      orderBy: { completedAt: 'desc' },
+      take: 100
+    })
+
+    const paymentsAsTransfers = merchantPayments
+      .filter((p) => p.payer)
+      .map((p) => ({
+        id: p.id,
+        amount: p.amount,
+        currency: p.currency,
+        status: 'COMPLETED',
+        reference: p.reference || (p.source === 'CHECKOUT' ? 'Online-Zahlung' : 'QR-Zahlung'),
+        createdAt: p.completedAt ?? p.createdAt,
+        sender: p.payer!,
+        recipient: p.merchant
+      }))
+
+    const activity = [...transfers, ...paymentsAsTransfers].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+
     return NextResponse.json({
       success: true,
-      transfers,
+      transfers: activity,
       balance: dbUser.balance,
       currency: dbUser.currency
     })
