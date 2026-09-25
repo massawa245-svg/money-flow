@@ -392,7 +392,7 @@ export default function DevelopersPage() {
                     >
                       {openDeliveryId === d.id ? "Inhalt ausblenden" : "Inhalt anzeigen"}
                     </button>
-                    {d.status === "FAILED" && (
+                    {d.status !== "SUCCEEDED" && (
                       <button
                         onClick={() => runWebhookAction(d.id, `/api/merchant/webhooks/deliveries/${d.id}/retry`)}
                         disabled={busyId === d.id}

@@ -109,7 +109,7 @@ async function attemptDelivery(deliveryId: string) {
 }
 
 // Stellt eine Zustellung mit bis zu 3 Versuchen zu. Nach dem Senden der API-Antwort per after() aufrufen.
-export async function deliverWithRetries(deliveryId: string, maxAttempts = RETRY_DELAYS_MS.length) {
+export async function deliverWithRetries(deliveryId: string, { maxAttempts = RETRY_DELAYS_MS.length } = {}) {
   for (const delay of RETRY_DELAYS_MS.slice(0, maxAttempts)) {
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay))
     if (await attemptDelivery(deliveryId)) return
@@ -145,7 +145,7 @@ export async function createWebhookEvent(merchantId: string, type: string, data:
 export async function dispatchWebhookEvent(merchantId: string, type: string, data: object) {
   try {
     const ids = await createWebhookEvent(merchantId, type, data)
-    await Promise.all(ids.map(deliverWithRetries))
+    await Promise.all(ids.map((id) => deliverWithRetries(id)))
   } catch (error) {
     console.error(`❌ Webhook ${type} für Händler ${merchantId} fehlgeschlagen:`, error)
   }

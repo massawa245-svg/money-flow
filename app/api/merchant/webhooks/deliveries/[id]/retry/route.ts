@@ -26,7 +26,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Zustellung nicht gefunden' }, { status: 404 })
     }
 
-    await deliverWithRetries(delivery.id, 1)
+    await deliverWithRetries(delivery.id, { maxAttempts: 1 })
     const updated = await prisma.webhookDelivery.findUnique({
       where: { id: delivery.id },
       select: { status: true, responseStatus: true, lastError: true }

@@ -24,7 +24,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     // Nur ein Versuch, damit der Händler das Ergebnis sofort sieht
-    await deliverWithRetries(deliveryId, 1)
+    await deliverWithRetries(deliveryId, { maxAttempts: 1 })
     const delivery = await prisma.webhookDelivery.findUnique({
       where: { id: deliveryId },
       select: { status: true, responseStatus: true, lastError: true }
