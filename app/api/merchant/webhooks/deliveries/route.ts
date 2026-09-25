@@ -16,6 +16,7 @@ export async function GET() {
         id: true,
         eventId: true,
         eventType: true,
+        payload: true,
         status: true,
         attempts: true,
         responseStatus: true,

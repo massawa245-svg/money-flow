@@ -19,6 +19,7 @@ type WebhookDelivery = {
   id: string
   eventId: string
   eventType: string
+  payload: string
   status: string
   attempts: number
   responseStatus: number | null
@@ -72,6 +73,7 @@ export default function DevelopersPage() {
   const [newWebhookSecret, setNewWebhookSecret] = useState<string | null>(null)
   const [webhookError, setWebhookError] = useState("")
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [openDeliveryId, setOpenDeliveryId] = useState<string | null>(null)
 
   const loadKeys = useCallback(async () => {
     const res = await fetch("/api/merchant/api-keys", { credentials: "include" })
@@ -326,6 +328,18 @@ export default function DevelopersPage() {
             </button>
           </form>
 
+          <p className="text-sm text-gray-500 mb-4">
+            Noch kein eigener Server?{" "}
+            <button
+              type="button"
+              onClick={() => setWebhookUrl(`${origin}/api/webhook-test-receiver`)}
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              Eingebauten Test-Empfänger verwenden
+            </button>
+            {" "}– er nimmt jedes Event an, den Inhalt siehst du unten im Protokoll.
+          </p>
+
           {webhookError && <p className="text-red-600 text-sm mb-4">{webhookError}</p>}
 
           {endpoints.length > 0 && (
@@ -356,7 +370,8 @@ export default function DevelopersPage() {
           ) : (
             <div className="divide-y divide-gray-100">
               {deliveries.map((d) => (
-                <div key={d.id} className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm">
+                <div key={d.id} className="py-2 text-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p>
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold mr-2 ${DELIVERY_STYLE[d.status] || ""}`}>
@@ -370,15 +385,29 @@ export default function DevelopersPage() {
                       {d.lastError ? ` · ${d.lastError}` : ""}
                     </p>
                   </div>
-                  {d.status === "FAILED" && (
+                  <div className="flex gap-4 shrink-0 self-start sm:self-auto">
                     <button
-                      onClick={() => runWebhookAction(d.id, `/api/merchant/webhooks/deliveries/${d.id}/retry`)}
-                      disabled={busyId === d.id}
-                      className="text-blue-600 hover:text-blue-800 shrink-0 self-start sm:self-auto disabled:opacity-50"
+                      onClick={() => setOpenDeliveryId(openDeliveryId === d.id ? null : d.id)}
+                      className="text-gray-600 hover:text-gray-900"
                     >
-                      {busyId === d.id ? "Sende..." : "Erneut senden"}
+                      {openDeliveryId === d.id ? "Inhalt ausblenden" : "Inhalt anzeigen"}
                     </button>
-                  )}
+                    {d.status === "FAILED" && (
+                      <button
+                        onClick={() => runWebhookAction(d.id, `/api/merchant/webhooks/deliveries/${d.id}/retry`)}
+                        disabled={busyId === d.id}
+                        className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                      >
+                        {busyId === d.id ? "Sende..." : "Erneut senden"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {openDeliveryId === d.id && (
+                  <pre className="mt-2 bg-gray-900 text-gray-100 text-xs rounded-lg p-4 overflow-x-auto">
+                    {JSON.stringify(JSON.parse(d.payload), null, 2)}
+                  </pre>
+                )}
                 </div>
               ))}
             </div>
