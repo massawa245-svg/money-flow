@@ -6,7 +6,7 @@ import { NextResponse } from 'next/server'
 // über (provider, externalId) dedupliziert, bevor es verarbeitet wird.
 //
 // ⚠️ TODO sobald ein echter Partner angebunden wird: Signatur des Requests
-// verifizieren (wie in app/api/stripe/webhook/route.ts), statt dem Body zu vertrauen.
+// verifizieren (Signatur-Header des Partners), statt dem Body zu vertrauen.
 export async function POST(request: Request) {
   try {
     const body = await request.json()

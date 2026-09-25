@@ -1,21 +1,16 @@
-﻿"use client"
+"use client"
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Elements } from '@stripe/react-stripe-js'
-import { loadStripe } from '@stripe/stripe-js'
-import StripePayment from '@/components/StripePayment'
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
-
+// ⚠️ TESTMODUS: Einzahlung ändert nur den Kontostand in der Datenbank, kein echtes Geld
 export default function AddMoneyPage() {
   const [amount, setAmount] = useState("")
-  const [step, setStep] = useState<'amount' | 'payment'>('amount')
-  const [user, setUser] = useState<any>(null)
   const [checking, setChecking] = useState(true)
-  const [clientSecret, setClientSecret] = useState("")
-  const [paymentIntentId, setPaymentIntentId] = useState("")
+  const [processing, setProcessing] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -28,29 +23,33 @@ export default function AddMoneyPage() {
       router.push('/login')
       return
     }
-    setUser(user)
     setChecking(false)
   }
 
-  const handleAmountSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    const response = await fetch('/api/stripe/create-payment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        amount: parseFloat(amount),
-        userId: user.id,
-        email: user.email
+    setError("")
+    setProcessing(true)
+
+    try {
+      const response = await fetch('/api/wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'DEPOSIT', amount: parseFloat(amount) })
       })
-    })
-    
-    const data = await response.json()
-    
-    if (data.clientSecret) {
-      setClientSecret(data.clientSecret)
-      setPaymentIntentId(data.paymentIntentId)
-      setStep('payment')
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Einzahlung fehlgeschlagen')
+        return
+      }
+
+      setSuccess(true)
+      setTimeout(() => router.push('/dashboard'), 2000)
+    } catch {
+      setError('Netzwerkfehler. Bitte versuche es erneut.')
+    } finally {
+      setProcessing(false)
     }
   }
 
@@ -75,10 +74,19 @@ export default function AddMoneyPage() {
 
         <div className="bg-white rounded-xl shadow-lg p-8">
           <h1 className="text-2xl font-bold mb-2">💰 Geld einzahlen</h1>
-          <p className="text-gray-600 mb-8">Lade dein Konto sicher und schnell auf</p>
+          <p className="text-gray-600 mb-4">Lade dein Konto auf</p>
 
-          {step === 'amount' ? (
-            <form onSubmit={handleAmountSubmit} className="space-y-6">
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm rounded-lg p-3 mb-8">
+            Testmodus: Es wird nur der Kontostand geändert, kein echtes Geld bewegt. Maximal 1.000 € pro Einzahlung.
+          </div>
+
+          {success ? (
+            <div className="text-center py-8">
+              <h2 className="text-2xl font-bold text-green-600 mb-2">Eingezahlt!</h2>
+              <p className="text-gray-600">€{parseFloat(amount).toFixed(2)} wurden deinem Konto gutgeschrieben.</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Betrag (€)
@@ -90,6 +98,7 @@ export default function AddMoneyPage() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="0.00"
                   min="1"
+                  max="1000"
                   step="0.01"
                   required
                 />
@@ -108,24 +117,16 @@ export default function AddMoneyPage() {
                 ))}
               </div>
 
+              {error && <p className="text-red-600 text-sm">{error}</p>}
+
               <button
                 type="submit"
-                disabled={!amount}
+                disabled={!amount || processing}
                 className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50"
               >
-                Weiter zur Zahlung
+                {processing ? "Wird eingezahlt..." : "Jetzt einzahlen"}
               </button>
             </form>
-          ) : (
-            clientSecret && (
-              <Elements stripe={stripePromise} options={{ clientSecret }}>
-                <StripePayment 
-                  amount={parseFloat(amount)} 
-                  userId={user.id} 
-                  email={user.email}
-                />
-              </Elements>
-            )
           )}
         </div>
       </div>
