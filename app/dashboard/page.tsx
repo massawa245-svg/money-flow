@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { formatEuro, isOutgoing, transferKind, transferTitle, type TransferItem } from "@/lib/transfer-display"
+import { amountClass, amountLabel, formatEuro, formatMoney, isOutgoing, transferKind, transferTitle, type TransferItem } from "@/lib/transfer-display"
 import { Icon, type IconName } from "@/components/Icon"
 
 export default function DashboardPage() {
@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [transfers, setTransfers] = useState<TransferItem[]>([])
   const [loading, setLoading] = useState(true)
   const [kycStatus, setKycStatus] = useState<string | null>(null)
+  const [otherBalances, setOtherBalances] = useState<{ currency: string; amount: number }[]>([])
   const router = useRouter()
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function DashboardPage() {
         setTransfers(data.transfers || [])
         setBalance(data.balance || 0)
         setKycStatus(data.kycStatus ?? null)
+        setOtherBalances((data.balances || []).slice(1))
       }
     } catch (error) {
       console.error('Fehler:', error)
@@ -79,6 +81,11 @@ export default function DashboardPage() {
               <p className="text-2xl sm:text-4xl font-bold tracking-tight">
                 € {balance.toLocaleString('de-DE', { minimumFractionDigits: 2 })}
               </p>
+              {otherBalances.length > 0 && (
+                <p className="text-blue-100 text-sm mt-1">
+                  {otherBalances.map((b) => formatMoney(b.amount, b.currency)).join(' · ')}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -116,6 +123,7 @@ export default function DashboardPage() {
               { href: "/receive", icon: "receive", label: "Empfangen" },
               { href: "/add-money", icon: "plus", label: "Einzahlen" },
               { href: "/withdraw", icon: "withdraw", label: "Auszahlen" },
+              { href: "/exchange", icon: "exchange", label: "Wechseln" },
               { href: "/merchant", icon: "store", label: "Kasse" },
               { href: "/profile", icon: "user", label: "Profil" }
             ] satisfies { href: string; icon: IconName; label: string }[]).map((item, idx) => (
@@ -176,9 +184,9 @@ export default function DashboardPage() {
                   <div key={t.id} className="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between hover:bg-gray-50 transition">
                     <div className="flex items-center gap-3 sm:gap-4">
                       <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${
-                        isSent ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                        kind === 'exchange' ? 'bg-gray-100 text-gray-700' : isSent ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
                       }`}>
-                        <Icon name={isSent ? 'send' : 'receive'} className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <Icon name={kind === 'exchange' ? 'exchange' : isSent ? 'send' : 'receive'} className="w-4 h-4 sm:w-5 sm:h-5" />
                       </div>
                       <div>
                         <p className="font-medium text-gray-900 text-sm sm:text-base">
@@ -189,8 +197,8 @@ export default function DashboardPage() {
                         </p>
                       </div>
                     </div>
-                    <p className={`font-bold text-sm sm:text-base ${isSent ? 'text-red-600' : 'text-green-600'}`}>
-                      {isSent ? '−' : '+'} € {formatEuro(t.amount)}
+                    <p className={`font-bold text-sm sm:text-base text-right ${amountClass(kind)}`}>
+                      {amountLabel(t, kind)}
                     </p>
                   </div>
                 )

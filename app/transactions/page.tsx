@@ -4,6 +4,8 @@ import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
+  amountClass,
+  amountLabel,
   formatEuro,
   isOutgoing,
   transferKind,
@@ -18,6 +20,7 @@ const FILTERS: { key: "all" | TransferKind; label: string }[] = [
   { key: "received", label: "Empfangen" },
   { key: "deposit", label: "Einzahlungen" },
   { key: "withdrawal", label: "Auszahlungen" },
+  { key: "exchange", label: "Geldwechsel" },
 ]
 
 const KIND_STYLE: Record<TransferKind, string> = {
@@ -25,6 +28,7 @@ const KIND_STYLE: Record<TransferKind, string> = {
   withdrawal: "text-orange-600",
   received: "text-green-600",
   deposit: "text-green-600",
+  exchange: "text-gray-900",
 }
 
 export default function TransactionsPage() {
@@ -121,8 +125,8 @@ export default function TransactionsPage() {
                     {t.reference ? ` · ${t.reference}` : ""}
                   </p>
                 </div>
-                <p className={`font-bold whitespace-nowrap ${isOutgoing(kind) ? "text-red-600" : "text-green-600"}`}>
-                  {isOutgoing(kind) ? "−" : "+"} € {formatEuro(t.amount)}
+                <p className={`font-bold whitespace-nowrap ${amountClass(kind)}`}>
+                  {amountLabel(t, kind)}
                 </p>
               </div>
             ))}

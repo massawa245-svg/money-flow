@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { ratelimit } from '@/lib/rate-limit'
 import { validateTransfer } from '@/lib/validator'
 import { requireVerified } from '@/lib/kyc'
+import { getBalances } from '@/lib/balances'
 
 // GET - Transfers und Balance abrufen (für Dashboard)
 export async function GET(request: Request) {
@@ -93,7 +94,26 @@ export async function GET(request: Request) {
         recipient: p.merchant
       }))
 
-    const activity = [...transfers, ...paymentsAsTransfers].sort(
+    // Geldwechsel ebenfalls im Transfer-Format (an sich selbst, Status EXCHANGE)
+    const exchanges = await prisma.currencyExchange.findMany({
+      where: { userId: dbUser.id },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    })
+    const me = { email: dbUser.email, name: dbUser.name }
+    const exchangesAsTransfers = exchanges.map((x) => ({
+      id: x.id,
+      amount: x.fromAmount,
+      currency: x.fromCurrency,
+      status: 'EXCHANGE',
+      reference: `${x.fromCurrency} → ${x.toCurrency}`,
+      createdAt: x.createdAt,
+      sender: me,
+      recipient: me,
+      exchange: { toAmount: x.toAmount, toCurrency: x.toCurrency, rate: x.rate }
+    }))
+
+    const activity = [...transfers, ...paymentsAsTransfers, ...exchangesAsTransfers].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
 
@@ -102,6 +122,7 @@ export async function GET(request: Request) {
       transfers: activity,
       balance: dbUser.balance,
       currency: dbUser.currency,
+      balances: await getBalances(dbUser),
       kycStatus: dbUser.kycStatus
     })
 

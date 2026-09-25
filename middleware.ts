@@ -57,7 +57,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/merchant') ||
     pathname.startsWith('/pay') ||
     pathname.startsWith('/verify') ||
-    pathname.startsWith('/admin')
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/exchange')
 
   // 🔓 Öffentliche Routen immer durchlassen
   if (isPublicPath) {
@@ -97,6 +98,7 @@ export const config = {
     '/pay/:path*',
     '/verify/:path*',
     '/admin/:path*',
+    '/exchange/:path*',
     '/auth/callback',
     '/api/:path*',
   ],

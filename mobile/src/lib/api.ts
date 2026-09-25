@@ -31,6 +31,21 @@ export type Transfer = {
   createdAt: string;
   sender: TransferParty;
   recipient: TransferParty;
+  // nur bei Geldwechsel (status EXCHANGE)
+  exchange?: { toAmount: number; toCurrency: string; rate: number };
+};
+
+export type Balance = { currency: string; amount: number };
+
+export type FxQuote = {
+  fromCurrency: string;
+  toCurrency: string;
+  fromAmount: number;
+  toAmount: number;
+  fee: number;
+  marketRate: number;
+  rate: number;
+  markupPercent: number;
 };
 
 export type KycStatus = 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -39,6 +54,7 @@ export type Overview = {
   success: true;
   balance: number;
   currency: string;
+  balances: Balance[];
   kycStatus: KycStatus;
   transfers: Transfer[];
 };
@@ -103,6 +119,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+  getFxQuote: (from: string, to: string, amount: number) =>
+    request<{ success: true; quote: FxQuote }>(`/api/fx/quote?from=${from}&to=${to}&amount=${amount}`),
+  exchange: (input: { from: string; to: string; amount: number; expectedToAmount: number }) =>
+    request<{ success: true; balances: Balance[] }>('/api/fx/exchange', { method: 'POST', body: JSON.stringify(input) }),
   getKyc: () => request<{ success: true; kyc: KycProfile }>('/api/kyc'),
   submitKyc: (input: KycSubmission) =>
     request<{ success: true; kyc: KycProfile }>('/api/kyc', { method: 'POST', body: JSON.stringify(input) }),

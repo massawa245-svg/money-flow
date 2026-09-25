@@ -45,6 +45,8 @@ model User {
   auditLogs         AuditLog[]
   apiKeys           ApiKey[]
   webhookEndpoints  WebhookEndpoint[]
+  currencyBalances  CurrencyBalance[]
+  exchanges         CurrencyExchange[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -213,4 +215,33 @@ model WebhookDelivery {
   createdAt       DateTime  @default(now())
 
   @@index([endpointId, createdAt])
+}
+
+// Guthaben in weiteren Währungen. Die Hauptwährung bleibt in User.balance / User.currency.
+model CurrencyBalance {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  currency  String
+  amount    Float    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, currency])
+}
+
+// Ein Geldwechsel (Testmodus: nur Buchung in der Datenbank)
+model CurrencyExchange {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  fromCurrency String
+  toCurrency   String
+  fromAmount   Float
+  toAmount     Float
+  marketRate   Float    // Marktkurs 1 from = x to
+  rate         Float    // tatsächlicher Kurs inkl. Aufschlag
+  fee          Float    // Aufschlag in fromCurrency
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

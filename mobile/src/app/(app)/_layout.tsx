@@ -9,6 +9,7 @@ export default function AppLayout() {
       <Stack.Screen name="send" />
       <Stack.Screen name="funds" />
       <Stack.Screen name="profile" />
+      <Stack.Screen name="exchange" />
       <Stack.Screen name="scan" options={{ contentStyle: { backgroundColor: Palette.night } }} />
       <Stack.Screen name="pay/[id]" />
     </Stack>

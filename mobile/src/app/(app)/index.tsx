@@ -7,7 +7,7 @@ import { Icon, type IconName } from '@/components/icon';
 import { FontFamily, Palette, Radius } from '@/constants/theme';
 import { api, type Overview, type Transfer } from '@/lib/api';
 import { useSession } from '@/lib/auth-context';
-import { formatAmount, formatDate } from '@/lib/format';
+import { formatAmount, formatDate, formatMoney } from '@/lib/format';
 
 function greeting() {
   const hour = new Date().getHours();
@@ -71,9 +71,16 @@ export default function HomeScreen() {
           <View style={styles.balanceText}>
             <Text style={styles.balanceLabel}>Verfügbares Guthaben</Text>
             {overview ? (
-              <Text style={styles.balance}>
-                {formatAmount(overview.balance)} <Text style={styles.balanceCurrency}>{currency}</Text>
-              </Text>
+              <>
+                <Text style={styles.balance}>
+                  {formatAmount(overview.balance)} <Text style={styles.balanceCurrency}>{currency}</Text>
+                </Text>
+                {overview.balances?.length > 1 ? (
+                  <Text style={styles.otherBalances}>
+                    {overview.balances.slice(1).map((b) => formatMoney(b.amount, b.currency)).join('  ·  ')}
+                  </Text>
+                ) : null}
+              </>
             ) : error ? (
               <Text style={styles.balanceError}>{error}</Text>
             ) : (
@@ -114,6 +121,7 @@ export default function HomeScreen() {
           <ActionTile icon="scan" label="Bezahlen" onPress={() => router.push('/scan')} />
           <ActionTile icon="plus" label="Einzahlen" onPress={() => router.push('/funds?mode=deposit')} />
           <ActionTile icon="withdraw" label="Auszahlen" onPress={() => router.push('/funds?mode=withdraw')} />
+          <ActionTile icon="exchange" label="Wechseln" onPress={() => router.push('/exchange')} />
         </View>
 
         <View style={styles.activity}>
@@ -163,14 +171,23 @@ function ActionTile({ icon, label, onPress }: { icon: IconName; label: string; o
 function TransferRow({ transfer, myEmail }: { transfer: Transfer; myEmail: string }) {
   // Ein-/Auszahlungen (Testmodus) sind Transfers an sich selbst; der Status unterscheidet sie
   const walletAction = transfer.status === 'DEPOSIT' || transfer.status === 'WITHDRAWAL';
+  const exchange = transfer.status === 'EXCHANGE' ? transfer.exchange : undefined;
   const outgoing = walletAction ? transfer.status === 'WITHDRAWAL' : transfer.sender.email === myEmail;
   const other = outgoing ? transfer.recipient : transfer.sender;
-  const otherName = walletAction
-    ? transfer.status === 'DEPOSIT'
-      ? 'Einzahlung'
-      : 'Auszahlung'
-    : other.name || other.email;
-  const label = walletAction ? 'Testmodus' : outgoing ? 'Gesendet' : 'Erhalten';
+  const otherName = exchange
+    ? `Wechsel ${transfer.currency} → ${exchange.toCurrency}`
+    : walletAction
+      ? transfer.status === 'DEPOSIT'
+        ? 'Einzahlung'
+        : 'Auszahlung'
+      : other.name || other.email;
+  const label = exchange
+    ? `${formatMoney(transfer.amount, transfer.currency)} gewechselt`
+    : walletAction
+      ? 'Testmodus'
+      : outgoing
+        ? 'Gesendet'
+        : 'Erhalten';
 
   return (
     <View style={styles.row}>
@@ -185,9 +202,10 @@ function TransferRow({ transfer, myEmail }: { transfer: Transfer; myEmail: strin
           {label} · {formatDate(transfer.createdAt)}
         </Text>
       </View>
-      <Text style={[styles.rowAmount, { color: outgoing ? Palette.ink : Palette.positive }]}>
-        {outgoing ? '− ' : '+ '}
-        {formatAmount(transfer.amount)}
+      <Text style={[styles.rowAmount, { color: exchange ? Palette.ink : outgoing ? Palette.ink : Palette.positive }]}>
+        {exchange
+          ? `+ ${formatMoney(exchange.toAmount, exchange.toCurrency)}`
+          : `${outgoing ? '− ' : '+ '}${formatMoney(transfer.amount, transfer.currency)}`}
       </Text>
     </View>
   );
@@ -211,6 +229,7 @@ const styles = StyleSheet.create({
   balanceCard: { padding: 24, borderRadius: Radius.card, backgroundColor: Palette.forest },
   balanceText: { gap: 6 },
   balanceLabel: { fontFamily: FontFamily.body, fontSize: 14, color: Palette.mint },
+  otherBalances: { fontFamily: FontFamily.bodyMedium, fontSize: 14, color: Palette.mint, marginTop: 4 },
   balance: {
     fontFamily: FontFamily.display,
     fontSize: 40,

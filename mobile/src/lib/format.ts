@@ -3,6 +3,13 @@ export function formatAmount(value: number): string {
   return value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+const SYMBOLS: Record<string, string> = { EUR: '€', USD: '$', ETB: 'Br' };
+
+// "12,50 €" / "1.880,00 Br"
+export function formatMoney(value: number, currency: string): string {
+  return `${formatAmount(value)} ${SYMBOLS[currency] ?? currency}`;
+}
+
 export function formatDate(iso: string): string {
   const date = new Date(iso);
   const now = new Date();
