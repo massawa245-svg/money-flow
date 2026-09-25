@@ -38,7 +38,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         status: payment.status,
         reference: payment.reference,
         merchantName: payment.merchant.name || payment.merchant.email,
-        expiresAt: payment.expiresAt
+        expiresAt: payment.expiresAt,
+        // Nur für Online-Checkouts: Rücksprung zum Shop
+        successUrl: payment.successUrl,
+        cancelUrl: payment.cancelUrl
       }
     })
   } catch (error: any) {

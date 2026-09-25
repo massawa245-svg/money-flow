@@ -11,6 +11,15 @@ interface PaymentDetails {
   reference: string | null
   merchantName: string
   expiresAt: string
+  successUrl: string | null
+  cancelUrl: string | null
+}
+
+// Shop erfährt über ?checkout_id=, welche Zahlung zurückkommt (Status per API prüfen, nicht der URL vertrauen)
+function withCheckoutId(url: string, id: string) {
+  const target = new URL(url)
+  target.searchParams.set("checkout_id", id)
+  return target.toString()
 }
 
 const STATUS_TEXT: Record<string, string> = {
@@ -51,6 +60,10 @@ export default function PayPage() {
         throw new Error(data.error || data.payment?.failureReason || "Zahlung fehlgeschlagen")
       }
       setPaid(true)
+      if (payment?.successUrl) {
+        const target = withCheckoutId(payment.successUrl, payment.id)
+        setTimeout(() => window.location.assign(target), 2000)
+      }
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -89,9 +102,15 @@ export default function PayPage() {
               <h1 className="text-2xl font-bold text-green-600 mb-2">Bezahlt</h1>
               <p className="text-3xl font-bold mb-1">{formatted} {payment.currency}</p>
               <p className="text-gray-600 mb-6">an {payment.merchantName}</p>
-              <Link href="/dashboard" className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700">
-                Fertig
-              </Link>
+              {payment.successUrl ? (
+                <a href={withCheckoutId(payment.successUrl, payment.id)} className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700">
+                  Zurück zu {payment.merchantName}
+                </a>
+              ) : (
+                <Link href="/dashboard" className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700">
+                  Fertig
+                </Link>
+              )}
             </>
           ) : (
             <>
@@ -115,6 +134,11 @@ export default function PayPage() {
                   >
                     {confirming ? "Wird bezahlt..." : `${formatted} ${payment.currency} bezahlen`}
                   </button>
+                  {payment.cancelUrl && (
+                    <a href={withCheckoutId(payment.cancelUrl, payment.id)} className="block mt-4 text-gray-500 hover:text-gray-700 text-sm">
+                      Abbrechen und zurück zum Shop
+                    </a>
+                  )}
                 </>
               ) : (
                 <p className="text-gray-700 font-medium">{STATUS_TEXT[payment.status] || `Status: ${payment.status}`}</p>

@@ -25,6 +25,7 @@ model User {
   merchantPayments  MerchantPayment[] @relation("merchant")
   paidPayments      MerchantPayment[] @relation("payer")
   auditLogs         AuditLog[]
+  apiKeys           ApiKey[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -88,6 +89,11 @@ model MerchantPayment {
   status         String    @default("PENDING") // PENDING | PROCESSING | COMPLETED | FAILED | EXPIRED | CANCELLED
   reference      String?
 
+  // QR = Kasse vor Ort, CHECKOUT = über die Händler-API erzeugt (Online-Shop)
+  source         String    @default("QR")
+  successUrl     String?
+  cancelUrl      String?
+
   idempotencyKey String    @unique
   providerRef    String?
   failureReason  String?
@@ -134,4 +140,23 @@ model AuditLog {
 
   @@index([userId])
   @@index([action])
+}
+
+// API-Schlüssel eines Händlers für die öffentliche API (/api/v1).
+// Gespeichert wird nur der SHA-256-Hash; der Klartext wird genau einmal angezeigt.
+model ApiKey {
+  id          String    @id @default(cuid())
+  merchantId  String
+  merchant    User      @relation(fields: [merchantId], references: [id])
+
+  name        String?
+  prefix      String    // Anfang des Schlüssels zur Wiedererkennung, z.B. "sk_test_4fX9"
+  hashedKey   String    @unique
+  mode        String    @default("test") // test | live
+
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([merchantId])
 }

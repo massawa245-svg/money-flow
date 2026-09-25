@@ -158,6 +158,19 @@ export default function MerchantPage() {
           </div>
         </div>
 
+        {isMerchant && (
+          <Link
+            href="/merchant/developers"
+            className="mb-6 flex items-center justify-between bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 hover:border-blue-200 transition-colors"
+          >
+            <span>
+              <span className="font-semibold">Online-Shop anbinden</span>
+              <span className="block text-sm text-gray-500">API-Schlüssel und Checkout für deine Webseite</span>
+            </span>
+            <span className="text-blue-600">→</span>
+          </Link>
+        )}
+
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
           <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-8 py-6">
             <div className="flex items-center gap-4">
