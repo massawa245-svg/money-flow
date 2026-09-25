@@ -13,6 +13,43 @@ type ApiKey = {
   createdAt: string
 }
 
+type WebhookEndpoint = { id: string; url: string; enabled: boolean; createdAt: string }
+
+type WebhookDelivery = {
+  id: string
+  eventId: string
+  eventType: string
+  status: string
+  attempts: number
+  responseStatus: number | null
+  lastError: string | null
+  lastAttemptAt: string | null
+  createdAt: string
+  endpoint: { url: string }
+}
+
+const DELIVERY_STYLE: Record<string, string> = {
+  SUCCEEDED: "bg-green-100 text-green-800",
+  FAILED: "bg-red-100 text-red-800",
+  PENDING: "bg-gray-100 text-gray-700",
+}
+
+const VERIFY_SNIPPET = `const crypto = require("crypto")
+
+// rawBody = unveränderter Request-Body als String
+function verifyWebhook(rawBody, signatureHeader, secret) {
+  const parts = Object.fromEntries(signatureHeader.split(",").map((p) => p.split("=")))
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(parts.t + "." + rawBody)
+    .digest("hex")
+  const fresh = Math.abs(Date.now() / 1000 - Number(parts.t)) < 300 // max. 5 Minuten alt
+  const given = Buffer.from(parts.v1 || "")
+  return fresh && given.length === expected.length && crypto.timingSafeEqual(Buffer.from(expected), given)
+}
+
+// Header: X-Webhook-Signature`
+
 function formatDate(value: string | null) {
   return value ? new Date(value).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–"
 }
@@ -28,6 +65,14 @@ export default function DevelopersPage() {
   const [error, setError] = useState("")
   const [origin, setOrigin] = useState("")
 
+  const [endpoints, setEndpoints] = useState<WebhookEndpoint[]>([])
+  const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([])
+  const [webhookUrl, setWebhookUrl] = useState("")
+  const [addingWebhook, setAddingWebhook] = useState(false)
+  const [newWebhookSecret, setNewWebhookSecret] = useState<string | null>(null)
+  const [webhookError, setWebhookError] = useState("")
+  const [busyId, setBusyId] = useState<string | null>(null)
+
   const loadKeys = useCallback(async () => {
     const res = await fetch("/api/merchant/api-keys", { credentials: "include" })
     if (res.status === 403) {
@@ -40,10 +85,63 @@ export default function DevelopersPage() {
     setLoading(false)
   }, [router])
 
+  const loadWebhooks = useCallback(async () => {
+    const [endpointsRes, deliveriesRes] = await Promise.all([
+      fetch("/api/merchant/webhooks", { credentials: "include" }),
+      fetch("/api/merchant/webhooks/deliveries", { credentials: "include" }),
+    ])
+    if (endpointsRes.ok) setEndpoints((await endpointsRes.json()).endpoints)
+    if (deliveriesRes.ok) setDeliveries((await deliveriesRes.json()).deliveries)
+  }, [])
+
   useEffect(() => {
     setOrigin(window.location.origin)
     loadKeys()
-  }, [loadKeys])
+    loadWebhooks()
+  }, [loadKeys, loadWebhooks])
+
+  const handleAddWebhook = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setWebhookError("")
+    setAddingWebhook(true)
+    try {
+      const res = await fetch("/api/merchant/webhooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ url: webhookUrl.trim() })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Webhook konnte nicht angelegt werden")
+      setNewWebhookSecret(data.endpoint.secret)
+      setWebhookUrl("")
+      await loadWebhooks()
+    } catch (e: any) {
+      setWebhookError(e.message)
+    } finally {
+      setAddingWebhook(false)
+    }
+  }
+
+  const handleDeleteWebhook = async (endpoint: WebhookEndpoint) => {
+    if (!confirm(`Webhook ${endpoint.url} löschen?`)) return
+    await fetch(`/api/merchant/webhooks/${endpoint.id}`, { method: "DELETE", credentials: "include" })
+    await loadWebhooks()
+  }
+
+  // Test-Event oder erneutes Senden: Ergebnis steht danach im Protokoll
+  const runWebhookAction = async (id: string, path: string) => {
+    setWebhookError("")
+    setBusyId(id)
+    try {
+      const res = await fetch(path, { method: "POST", credentials: "include" })
+      const data = await res.json()
+      if (!res.ok) setWebhookError(data.error || "Aktion fehlgeschlagen")
+    } finally {
+      setBusyId(null)
+      await loadWebhooks()
+    }
+  }
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -191,6 +289,102 @@ export default function DevelopersPage() {
           )}
         </section>
 
+        {/* Webhooks */}
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h2 className="text-xl font-semibold mb-1">Webhooks</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            Wir senden ein <code>payment.completed</code>-Event an deine URL, sobald eine Zahlung abgeschlossen ist (Checkout und QR-Kasse).
+          </p>
+
+          {newWebhookSecret && (
+            <div className="mb-6 p-4 rounded-lg border border-green-200 bg-green-50">
+              <p className="font-semibold text-green-800 mb-2">Signatur-Geheimnis – jetzt kopieren!</p>
+              <p className="text-sm text-green-800 mb-3">
+                Damit prüft dein Server, dass ein Event wirklich von uns kommt. Es wird nur dieses eine Mal angezeigt.
+              </p>
+              <input readOnly value={newWebhookSecret} className="w-full px-3 py-2 font-mono text-sm bg-white border border-green-200 rounded-lg" />
+              <button onClick={() => setNewWebhookSecret(null)} className="mt-3 text-sm text-green-800 underline">
+                Ich habe es gespeichert
+              </button>
+            </div>
+          )}
+
+          <form onSubmit={handleAddWebhook} className="flex flex-col sm:flex-row gap-2 mb-4">
+            <input
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrl(e.target.value)}
+              placeholder="https://dein-shop.de/webhooks/zahlung"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+              required
+            />
+            <button
+              type="submit"
+              disabled={addingWebhook}
+              className="px-5 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+            >
+              {addingWebhook ? "Wird geprüft..." : "Webhook hinzufügen"}
+            </button>
+          </form>
+
+          {webhookError && <p className="text-red-600 text-sm mb-4">{webhookError}</p>}
+
+          {endpoints.length > 0 && (
+            <div className="divide-y divide-gray-100 mb-6">
+              {endpoints.map((endpoint) => (
+                <div key={endpoint.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <p className="font-mono text-sm break-all">{endpoint.url}</p>
+                  <div className="flex gap-4 text-sm shrink-0">
+                    <button
+                      onClick={() => runWebhookAction(endpoint.id, `/api/merchant/webhooks/${endpoint.id}/test`)}
+                      disabled={busyId === endpoint.id}
+                      className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                    >
+                      {busyId === endpoint.id ? "Sende..." : "Test-Event senden"}
+                    </button>
+                    <button onClick={() => handleDeleteWebhook(endpoint)} className="text-red-600 hover:text-red-800">
+                      Löschen
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <h3 className="font-semibold mb-2">Letzte Zustellungen</h3>
+          {deliveries.length === 0 ? (
+            <p className="text-gray-500 text-sm">Noch keine Events gesendet.</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {deliveries.map((d) => (
+                <div key={d.id} className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm">
+                  <div className="min-w-0">
+                    <p>
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold mr-2 ${DELIVERY_STYLE[d.status] || ""}`}>
+                        {d.status === "SUCCEEDED" ? "Zugestellt" : d.status === "FAILED" ? "Fehlgeschlagen" : "Ausstehend"}
+                      </span>
+                      <code>{d.eventType}</code>
+                      {d.responseStatus ? <span className="text-gray-500"> · HTTP {d.responseStatus}</span> : null}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {formatDate(d.lastAttemptAt || d.createdAt)} · {d.attempts} Versuch(e) · {d.endpoint.url}
+                      {d.lastError ? ` · ${d.lastError}` : ""}
+                    </p>
+                  </div>
+                  {d.status === "FAILED" && (
+                    <button
+                      onClick={() => runWebhookAction(d.id, `/api/merchant/webhooks/deliveries/${d.id}/retry`)}
+                      disabled={busyId === d.id}
+                      className="text-blue-600 hover:text-blue-800 shrink-0 self-start sm:self-auto disabled:opacity-50"
+                    >
+                      {busyId === d.id ? "Sende..." : "Erneut senden"}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         {/* Kurzanleitung */}
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
           <h2 className="text-xl font-semibold">So funktioniert der Checkout</h2>
@@ -209,6 +403,13 @@ export default function DevelopersPage() {
           <div>
             <p className="font-medium mb-2">2. Status prüfen</p>
             <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-4 overflow-x-auto">{curlGet}</pre>
+          </div>
+          <div>
+            <p className="font-medium mb-2">3. Webhook-Signatur prüfen (Node.js)</p>
+            <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-4 overflow-x-auto">{VERIFY_SNIPPET}</pre>
+            <p className="text-sm text-gray-600 mt-2">
+              Antworte mit HTTP 2xx, sonst versuchen wir es bis zu 3-mal. Dasselbe Event kann mehrfach ankommen – erkenne Duplikate an der <code>id</code>.
+            </p>
           </div>
           <p className="text-sm text-gray-600">
             Mögliche Status: <code>pending</code>, <code>processing</code>, <code>completed</code>, <code>failed</code>, <code>expired</code>.

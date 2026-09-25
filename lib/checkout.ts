@@ -25,6 +25,7 @@ export function serializeCheckout(payment: MerchantPayment, origin: string) {
     object: 'checkout',
     url: `${origin}/pay/${payment.id}`,
     status: payment.status.toLowerCase(),
+    source: payment.source.toLowerCase(), // "checkout" (Online-Shop) oder "qr" (Kasse)
     amount: payment.amount,
     currency: payment.currency,
     reference: payment.reference || null,

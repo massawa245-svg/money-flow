@@ -26,6 +26,7 @@ model User {
   paidPayments      MerchantPayment[] @relation("payer")
   auditLogs         AuditLog[]
   apiKeys           ApiKey[]
+  webhookEndpoints  WebhookEndpoint[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -159,4 +160,39 @@ model ApiKey {
   createdAt   DateTime  @default(now())
 
   @@index([merchantId])
+}
+
+// Webhook-Ziel eines Händlers. Das Secret wird zum Signieren gebraucht und daher im Klartext gespeichert.
+model WebhookEndpoint {
+  id          String    @id @default(cuid())
+  merchantId  String
+  merchant    User      @relation(fields: [merchantId], references: [id])
+
+  url         String
+  secret      String
+  enabled     Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  deliveries  WebhookDelivery[]
+
+  @@index([merchantId])
+}
+
+// Ein Zustellversuch eines Events an einen Endpoint (für Protokoll und erneutes Senden)
+model WebhookDelivery {
+  id              String    @id @default(cuid())
+  endpointId      String
+  endpoint        WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  eventId         String
+  eventType       String
+  payload         String    // exakt der signierte JSON-Body
+  status          String    @default("PENDING") // PENDING | SUCCEEDED | FAILED
+  attempts        Int       @default(0)
+  responseStatus  Int?
+  lastError       String?
+  lastAttemptAt   DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([endpointId, createdAt])
 }

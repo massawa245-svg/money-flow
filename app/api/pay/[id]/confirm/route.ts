@@ -1,9 +1,11 @@
 import { getAuthenticatedUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { ratelimit } from '@/lib/rate-limit'
 import { paymentProvider } from '@/lib/payment-provider'
 import { logAudit } from '@/lib/audit'
+import { serializeCheckout } from '@/lib/checkout'
+import { dispatchWebhookEvent } from '@/lib/webhooks'
 
 // POST - Kunde bestätigt die Zahlung (nach Biometric-Check in der App).
 // ⚠️ TESTMODUS: paymentProvider ist ein Mock; das Guthaben wird nur in der
@@ -118,6 +120,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       action: 'merchant_payment_completed',
       details: { paymentId: payment.id, amount: payment.amount, currency: payment.currency }
     })
+
+    // Händler benachrichtigen, nachdem der Kunde seine Antwort hat
+    const origin = new URL(request.url).origin
+    after(() => dispatchWebhookEvent(updated.merchantId, 'payment.completed', serializeCheckout(updated, origin)))
 
     return NextResponse.json({ success: true, payment: updated })
   } catch (error: any) {
