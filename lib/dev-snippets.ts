@@ -1,5 +1,5 @@
 // Code-Beispiele für die Entwickler-Seite. Die Signatur-Prüfungen sind gegen
-// lib/webhooks.ts signPayload() getestet (Node.js und Python ausgeführt).
+// lib/webhooks.ts signPayload() getestet (Node.js, PHP 8.5 und Python ausgeführt).
 
 export function curlCreateCheckout(origin: string) {
   return `curl -X POST ${origin}/api/v1/checkout \\
