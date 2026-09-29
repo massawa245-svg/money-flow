@@ -1,10 +1,14 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
-// ⚠️ TESTMODUS: Einzahlung ändert nur den Kontostand in der Datenbank, kein echtes Geld
+// ⚠️ TESTMODUS: Einzahlung ändert nur den Kontostand in der Datenbank, kein echtes Geld.
+// PayPal läuft ausschließlich gegen die PayPal-Sandbox (Test-Konten, kein echtes Geld).
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID
+
 export default function AddMoneyPage() {
   const [amount, setAmount] = useState("")
   const [checking, setChecking] = useState(true)
@@ -12,6 +16,9 @@ export default function AddMoneyPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   const router = useRouter()
+  // PayPal-Callbacks werden einmal registriert; der Ref liefert immer den aktuellen Betrag
+  const amountRef = useRef(amount)
+  amountRef.current = amount
 
   useEffect(() => {
     checkUser()
@@ -44,6 +51,43 @@ export default function AddMoneyPage() {
         return
       }
 
+      setSuccess(true)
+      setTimeout(() => router.push('/dashboard'), 2000)
+    } catch {
+      setError('Netzwerkfehler. Bitte versuche es erneut.')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const createPaypalOrder = async () => {
+    setError("")
+    const response = await fetch('/api/paypal/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: parseFloat(amountRef.current) })
+    })
+    const data = await response.json()
+    if (!response.ok) {
+      setError(data.error || 'PayPal-Bestellung fehlgeschlagen')
+      throw new Error(data.error)
+    }
+    return data.id as string
+  }
+
+  const capturePaypalOrder = async (orderId: string) => {
+    setProcessing(true)
+    try {
+      const response = await fetch('/api/paypal/capture-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId })
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        setError(data.error || 'PayPal-Gutschrift fehlgeschlagen')
+        return
+      }
       setSuccess(true)
       setTimeout(() => router.push('/dashboard'), 2000)
     } catch {
@@ -124,8 +168,27 @@ export default function AddMoneyPage() {
                 disabled={!amount || processing}
                 className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50"
               >
-                {processing ? "Wird eingezahlt..." : "Jetzt einzahlen"}
+                {processing ? "Wird eingezahlt..." : "Testgeld einzahlen"}
               </button>
+
+              {PAYPAL_CLIENT_ID && (
+                <div className="pt-6 border-t border-gray-200">
+                  <p className="text-sm font-medium text-gray-700 mb-1">Oder mit PayPal (Sandbox)</p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Mit einem PayPal-Sandbox-Testkonto bezahlen – es fließt kein echtes Geld.
+                  </p>
+                  <PayPalScriptProvider options={{ clientId: PAYPAL_CLIENT_ID, currency: "EUR", intent: "capture" }}>
+                    <PayPalButtons
+                      style={{ layout: "vertical", label: "pay" }}
+                      disabled={!amount || parseFloat(amount) < 1 || processing}
+                      forceReRender={[!amount || parseFloat(amount) < 1]}
+                      createOrder={createPaypalOrder}
+                      onApprove={(data) => capturePaypalOrder(data.orderID)}
+                      onError={() => setError('PayPal-Fehler. Bitte versuche es erneut.')}
+                    />
+                  </PayPalScriptProvider>
+                </div>
+              )}
             </form>
           )}
         </div>
