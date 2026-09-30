@@ -121,6 +121,7 @@ export default function DashboardPage() {
             {([
               { href: "/transfer", icon: "send", label: "Senden" },
               { href: "/receive", icon: "receive", label: "Empfangen" },
+              { href: "/bank", icon: "bank", label: "Bankkonto" },
               { href: "/add-money", icon: "plus", label: "Einzahlen" },
               { href: "/withdraw", icon: "withdraw", label: "Auszahlen" },
               { href: "/exchange", icon: "exchange", label: "Wechseln" },

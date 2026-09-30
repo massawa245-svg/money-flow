@@ -46,6 +46,7 @@ const paths = {
   ban: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M5.5 5.5l13 13'],
   clock: ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', 'M12 7v5l3 2'],
   code: ['M8 8l-4 4 4 4', 'M16 8l4 4-4 4', 'M14 5l-4 14'],
+  bank: ['M3 10l9-6 9 6', 'M5 10v8', 'M9.5 10v8', 'M14.5 10v8', 'M19 10v8', 'M3 20h18'],
 } as const
 
 export type IconName = keyof typeof paths

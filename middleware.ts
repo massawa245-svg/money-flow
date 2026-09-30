@@ -58,7 +58,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/pay') ||
     pathname.startsWith('/verify') ||
     pathname.startsWith('/admin') ||
-    pathname.startsWith('/exchange')
+    pathname.startsWith('/exchange') ||
+    pathname.startsWith('/bank')
 
   // 🔓 Öffentliche Routen immer durchlassen
   if (isPublicPath) {

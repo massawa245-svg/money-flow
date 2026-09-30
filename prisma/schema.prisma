@@ -24,7 +24,7 @@ model User {
   kycStatus       String    @default("NONE") // NONE | PENDING | APPROVED | REJECTED
   firstName       String?
   lastName        String?
-  dateOfBirth     String?   // YYYY-MM-DD
+  dateOfBirth     String? // YYYY-MM-DD
   street          String?
   postalCode      String?
   city            String?
@@ -37,39 +37,40 @@ model User {
   kycReviewedAt   DateTime?
   kycRejectReason String?
 
-  sentTransfers     Transfer[] @relation("sender")
-  receivedTransfers Transfer[] @relation("recipient")
+  sentTransfers     Transfer[]         @relation("sender")
+  receivedTransfers Transfer[]         @relation("recipient")
   accounts          Account[]
-  merchantPayments  MerchantPayment[] @relation("merchant")
-  paidPayments      MerchantPayment[] @relation("payer")
+  merchantPayments  MerchantPayment[]  @relation("merchant")
+  paidPayments      MerchantPayment[]  @relation("payer")
   auditLogs         AuditLog[]
   apiKeys           ApiKey[]
   webhookEndpoints  WebhookEndpoint[]
   currencyBalances  CurrencyBalance[]
   exchanges         CurrencyExchange[]
+  swanAccount       SwanAccount?
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([email])
   @@index([googleId])
 }
 
 model Transfer {
-  id          String   @id @default(cuid())
-  amount      Float
-  currency    String   @default("EUR")
-  status      String   @default("COMPLETED")
-  reference   String?
-  
+  id        String  @id @default(cuid())
+  amount    Float
+  currency  String  @default("EUR")
+  status    String  @default("COMPLETED")
+  reference String?
+
   senderId    String
   recipientId String
-  sender      User     @relation("sender", fields: [senderId], references: [id])
-  recipient   User     @relation("recipient", fields: [recipientId], references: [id])
-  
+  sender      User   @relation("sender", fields: [senderId], references: [id])
+  recipient   User   @relation("recipient", fields: [recipientId], references: [id])
+
   createdAt   DateTime @default(now())
   completedAt DateTime @default(now())
-  
+
   @@index([senderId])
   @@index([recipientId])
   @@index([createdAt])
@@ -99,32 +100,32 @@ model Account {
 // regulierten Payment-Partner (siehe lib/payment-provider). Dieses Model
 // ist der Status-/Ledger-Eintrag dazu (payment_id, Status, Idempotency).
 model MerchantPayment {
-  id             String    @id @default(cuid())
-  merchantId     String
-  merchant       User      @relation("merchant", fields: [merchantId], references: [id])
-  payerId        String?
-  payer          User?     @relation("payer", fields: [payerId], references: [id])
+  id         String  @id @default(cuid())
+  merchantId String
+  merchant   User    @relation("merchant", fields: [merchantId], references: [id])
+  payerId    String?
+  payer      User?   @relation("payer", fields: [payerId], references: [id])
 
-  amount         Float
-  currency       String    @default("ETB")
-  status         String    @default("PENDING") // PENDING | PROCESSING | COMPLETED | FAILED | EXPIRED | CANCELLED
-  reference      String?
+  amount    Float
+  currency  String  @default("ETB")
+  status    String  @default("PENDING") // PENDING | PROCESSING | COMPLETED | FAILED | EXPIRED | CANCELLED
+  reference String?
 
   // QR = Kasse vor Ort, CHECKOUT = über die Händler-API erzeugt (Online-Shop)
-  source         String    @default("QR")
-  successUrl     String?
-  cancelUrl      String?
+  source     String  @default("QR")
+  successUrl String?
+  cancelUrl  String?
 
-  idempotencyKey String    @unique
+  idempotencyKey String  @unique
   providerRef    String?
   failureReason  String?
 
-  expiresAt      DateTime
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  completedAt    DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
 
-  events         PaymentProviderEvent[]
+  events PaymentProviderEvent[]
 
   @@index([merchantId])
   @@index([payerId])
@@ -134,16 +135,16 @@ model MerchantPayment {
 // Eingehende Events vom Payment-Partner (Webhook). externalId + provider
 // sind eindeutig, damit doppelt zugestellte Webhooks nicht doppelt verarbeitet werden.
 model PaymentProviderEvent {
-  id         String   @id @default(cuid())
+  id         String @id @default(cuid())
   provider   String
   externalId String
   type       String
   payload    String
 
-  paymentId  String?
-  payment    MerchantPayment? @relation(fields: [paymentId], references: [id])
+  paymentId String?
+  payment   MerchantPayment? @relation(fields: [paymentId], references: [id])
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([provider, externalId])
   @@index([paymentId])
@@ -166,53 +167,53 @@ model AuditLog {
 // API-Schlüssel eines Händlers für die öffentliche API (/api/v1).
 // Gespeichert wird nur der SHA-256-Hash; der Klartext wird genau einmal angezeigt.
 model ApiKey {
-  id          String    @id @default(cuid())
-  merchantId  String
-  merchant    User      @relation(fields: [merchantId], references: [id])
+  id         String @id @default(cuid())
+  merchantId String
+  merchant   User   @relation(fields: [merchantId], references: [id])
 
-  name        String?
-  prefix      String    // Anfang des Schlüssels zur Wiedererkennung, z.B. "sk_test_4fX9"
-  hashedKey   String    @unique
-  mode        String    @default("test") // test | live
+  name      String?
+  prefix    String // Anfang des Schlüssels zur Wiedererkennung, z.B. "sk_test_4fX9"
+  hashedKey String  @unique
+  mode      String  @default("test") // test | live
 
-  lastUsedAt  DateTime?
-  revokedAt   DateTime?
-  createdAt   DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
 
   @@index([merchantId])
 }
 
 // Webhook-Ziel eines Händlers. Das Secret wird zum Signieren gebraucht und daher im Klartext gespeichert.
 model WebhookEndpoint {
-  id          String    @id @default(cuid())
-  merchantId  String
-  merchant    User      @relation(fields: [merchantId], references: [id])
+  id         String @id @default(cuid())
+  merchantId String
+  merchant   User   @relation(fields: [merchantId], references: [id])
 
-  url         String
-  secret      String
-  enabled     Boolean   @default(true)
-  createdAt   DateTime  @default(now())
+  url       String
+  secret    String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
 
-  deliveries  WebhookDelivery[]
+  deliveries WebhookDelivery[]
 
   @@index([merchantId])
 }
 
 // Ein Zustellversuch eines Events an einen Endpoint (für Protokoll und erneutes Senden)
 model WebhookDelivery {
-  id              String    @id @default(cuid())
-  endpointId      String
-  endpoint        WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  id         String          @id @default(cuid())
+  endpointId String
+  endpoint   WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
 
-  eventId         String
-  eventType       String
-  payload         String    // exakt der signierte JSON-Body
-  status          String    @default("PENDING") // PENDING | SUCCEEDED | FAILED
-  attempts        Int       @default(0)
-  responseStatus  Int?
-  lastError       String?
-  lastAttemptAt   DateTime?
-  createdAt       DateTime  @default(now())
+  eventId        String
+  eventType      String
+  payload        String // exakt der signierte JSON-Body
+  status         String    @default("PENDING") // PENDING | SUCCEEDED | FAILED
+  attempts       Int       @default(0)
+  responseStatus Int?
+  lastError      String?
+  lastAttemptAt  DateTime?
+  createdAt      DateTime  @default(now())
 
   @@index([endpointId, createdAt])
 }
@@ -238,10 +239,27 @@ model CurrencyExchange {
   toCurrency   String
   fromAmount   Float
   toAmount     Float
-  marketRate   Float    // Marktkurs 1 from = x to
-  rate         Float    // tatsächlicher Kurs inkl. Aufschlag
-  fee          Float    // Aufschlag in fromCurrency
+  marketRate   Float // Marktkurs 1 from = x to
+  rate         Float // tatsächlicher Kurs inkl. Aufschlag
+  fee          Float // Aufschlag in fromCurrency
   createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+// Echtes Bankkonto bei Swan (Sandbox): IBAN + Mastercard. Ein Konto pro Nutzer.
+model SwanAccount {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  onboardingId String   @unique
+  status       String   @default("ONBOARDING") // ONBOARDING | OPEN
+  oauthState   String? // CSRF-Schutz für den Swan-Login
+  swanUserId   String?
+  accountId    String?  @unique
+  membershipId String?
+  iban         String?
+  bic          String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
