@@ -43,7 +43,7 @@ export function createOrder(amount: number, userId: string) {
       {
         amount: { currency_code: 'EUR', value: amount.toFixed(2) },
         custom_id: userId,
-        description: 'MoneyFlow Einzahlung (Sandbox)',
+        description: 'Massawa Pay Einzahlung (Sandbox)',
       },
     ],
   })

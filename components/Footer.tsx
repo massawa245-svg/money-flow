@@ -11,7 +11,7 @@ export default function Footer() {
           <div>
             <h3 className="font-bold mb-3">Über uns</h3>
             <ul className="space-y-2 text-sm text-blue-100">
-              <li><Link href="/about" className="hover:text-white">Über MoneyFlow</Link></li>
+              <li><Link href="/about" className="hover:text-white">Über Massawa Pay</Link></li>
               <li><Link href="/careers" className="hover:text-white">Karriere</Link></li>
               <li><Link href="/press" className="hover:text-white">Presse</Link></li>
             </ul>
@@ -40,7 +40,7 @@ export default function Footer() {
         {/* Trennlinie */}
         <div className="border-t border-blue-500 pt-4">
           <div className="flex flex-col md:flex-row justify-between items-center text-sm text-blue-100">
-            <p>© 2026 MoneyFlow. Alle Rechte vorbehalten.</p>
+            <p>© 2026 Massawa Pay. Alle Rechte vorbehalten.</p>
             <div className="flex gap-4 mt-2 md:mt-0">
               <span className="flex items-center gap-1.5"><Icon name="shield" className="w-4 h-4" /> Sicher bezahlen</span>
               <span className="flex items-center gap-1.5"><Icon name="lock" className="w-4 h-4" /> SSL verschlüsselt</span>

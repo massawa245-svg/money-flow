@@ -79,7 +79,7 @@ async function attemptDelivery(deliveryId: string) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'User-Agent': 'MoneyFlow-Webhooks/1.0',
+          'User-Agent': 'MassawaPay-Webhooks/1.0',
           'X-Webhook-Id': delivery.eventId,
           'X-Webhook-Signature': signPayload(delivery.endpoint.secret, delivery.payload)
         },

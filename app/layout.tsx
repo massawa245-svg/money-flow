@@ -7,8 +7,8 @@ import Footer from "@/components/Footer"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Money Transfer App",
-  description: "Send money instantly and securely",
+  title: "Massawa Pay",
+  description: "Geld senden, bezahlen und empfangen – schnell und sicher",
 }
 
 export default function RootLayout({

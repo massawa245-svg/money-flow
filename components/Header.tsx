@@ -29,7 +29,7 @@ export default function Header() {
             <span className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center">
               <Icon name="wallet" className="w-5 h-5" />
             </span>
-            <span className="font-bold text-xl">MoneyFlow</span>
+            <span className="font-bold text-xl">Massawa Pay</span>
           </Link>
 
           {/* Hamburger Icon (drei Striche) */}
