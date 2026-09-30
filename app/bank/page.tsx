@@ -345,9 +345,15 @@ function OpenAccount({ data }: { data: BankData }) {
         <div>
           <h2 className="font-semibold text-gray-900">Deine Angaben</h2>
           <p className="text-sm text-gray-500 mt-1">
-            {prefill.firstName} {prefill.lastName}
-            {prefill.dateOfBirth && ` · geboren am ${new Date(prefill.dateOfBirth + 'T00:00:00').toLocaleDateString('de-DE')}`}
-            {' '}– aus deiner Identitätsprüfung übernommen.
+            {prefill.firstName || prefill.lastName ? (
+              <>
+                {prefill.firstName} {prefill.lastName}
+                {prefill.dateOfBirth && ` · geboren am ${new Date(prefill.dateOfBirth + 'T00:00:00').toLocaleDateString('de-DE')}`}
+                {' '}– aus deiner Identitätsprüfung übernommen.
+              </>
+            ) : (
+              'Name, Geburtsdatum und Adresse bestätigst du im nächsten Schritt direkt bei Swan.'
+            )}
           </p>
         </div>
 

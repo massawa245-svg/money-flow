@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     const error = validate(body)
     if (error) return NextResponse.json({ error }, { status: 400 })
 
-    const accountAdmin = {
+    const accountAdmin = withoutEmpty({
       email: dbUser!.email,
       firstName: dbUser!.firstName,
       lastName: dbUser!.lastName,
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
       sourcesOfFunds: body.sourcesOfFunds,
       taxIdentificationNumber: body.taxId,
       unitedStatesTaxInfo: { isUnitedStatesPerson: false },
-    }
+    })
 
     const created = await swanQuery(
       `mutation($input: CreateIndividualAccountHolderOnboardingInput!) {
@@ -157,6 +157,15 @@ export async function POST(request: Request) {
     console.error('❌ Fehler in POST /api/swan/account:', error)
     return NextResponse.json({ error: 'Kontoeröffnung fehlgeschlagen' }, { status: 500 })
   }
+}
+
+// Leere Felder (z. B. fehlende KYC-Daten) nicht an Swan schicken – Swan fragt sie beim Login selbst ab
+function withoutEmpty<T extends Record<string, any>>(obj: T): T {
+  return Object.fromEntries(
+    Object.entries(obj)
+      .map(([k, v]) => [k, v && typeof v === 'object' && !Array.isArray(v) ? withoutEmpty(v) : v])
+      .filter(([, v]) => v !== null && v !== undefined && v !== '' && !(typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0))
+  ) as T
 }
 
 function validate(body: any): string | null {
