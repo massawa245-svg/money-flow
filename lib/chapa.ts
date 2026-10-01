@@ -60,5 +60,16 @@ export async function createChapaTransfer(params: {
     cache: 'no-store',
   })
   const data = await res.json().catch(() => ({}))
-  return { ok: res.ok && data?.status === 'success', status: res.status, message: String(data?.message ?? '') }
+  return { ok: res.ok && data?.status === 'success', status: res.status, message: chapaMessage(data?.message) }
+}
+
+// Chapa liefert Fehler mal als Text, mal als { feld: ["Meldung"] }
+function chapaMessage(message: unknown): string {
+  if (typeof message === 'string') return message
+  if (message && typeof message === 'object') {
+    return Object.entries(message as Record<string, unknown>)
+      .map(([field, v]) => `${field}: ${Array.isArray(v) ? v.join(', ') : String(v)}`)
+      .join('; ')
+  }
+  return ''
 }

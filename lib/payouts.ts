@@ -55,7 +55,8 @@ export async function executePayout(params: {
 }) {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: params.userId } })
   const quote = await quotePayout(user.currency, params.amount)
-  const reference = `mp-${randomUUID()}`
+  // Chapa erlaubt höchstens 36 Zeichen → UUID ohne Bindestriche (32) + Präfix
+  const reference = `mp${randomUUID().replace(/-/g, '')}`
   const label = `Auszahlung an ${params.destination.bankName} ${maskAccount(params.destination.accountNumber)}`
 
   const payout = await prisma.$transaction(async (tx) => {
