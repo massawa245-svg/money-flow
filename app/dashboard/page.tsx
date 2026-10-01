@@ -124,6 +124,7 @@ export default function DashboardPage() {
               { href: "/bank", icon: "bank", label: "Bankkonto" },
               { href: "/add-money", icon: "plus", label: "Einzahlen" },
               { href: "/withdraw", icon: "withdraw", label: "Auszahlen" },
+              { href: "/payout", icon: "pin", label: "Äthiopien" },
               { href: "/exchange", icon: "exchange", label: "Wechseln" },
               { href: "/merchant", icon: "store", label: "Kasse" },
               { href: "/profile", icon: "user", label: "Profil" }

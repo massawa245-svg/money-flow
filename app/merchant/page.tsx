@@ -161,6 +161,19 @@ export default function MerchantPage() {
 
         {isMerchant && (
           <Link
+            href="/payout"
+            className="mb-3 flex items-center justify-between bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 hover:border-emerald-200 transition-colors"
+          >
+            <span>
+              <span className="font-semibold">Sofort auf telebirr oder Bank auszahlen</span>
+              <span className="block text-sm text-gray-500">Jede Zahlung direkt nach Äthiopien weiterleiten (Testmodus)</span>
+            </span>
+            <span className="text-emerald-600">→</span>
+          </Link>
+        )}
+
+        {isMerchant && (
+          <Link
             href="/merchant/developers"
             className="mb-6 flex items-center justify-between bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 hover:border-blue-200 transition-colors"
           >

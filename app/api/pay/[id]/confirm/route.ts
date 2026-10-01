@@ -7,6 +7,7 @@ import { logAudit } from '@/lib/audit'
 import { requireVerified } from '@/lib/kyc'
 import { serializeCheckout } from '@/lib/checkout'
 import { dispatchWebhookEvent } from '@/lib/webhooks'
+import { autoPayoutForMerchantPayment } from '@/lib/payouts'
 
 // POST - Kunde bestätigt die Zahlung (nach Biometric-Check in der App).
 // ⚠️ TESTMODUS: paymentProvider ist ein Mock; das Guthaben wird nur in der
@@ -128,6 +129,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // Händler benachrichtigen, nachdem der Kunde seine Antwort hat
     const origin = new URL(request.url).origin
     after(() => dispatchWebhookEvent(updated.merchantId, 'payment.completed', serializeCheckout(updated, origin)))
+    // Händler mit Sofortauszahlung bekommen den Betrag direkt auf telebirr / Bank (Chapa-Testmodus)
+    after(() => autoPayoutForMerchantPayment(updated.merchantId, updated.id, updated.amount))
 
     return NextResponse.json({ success: true, payment: updated })
   } catch (error: any) {

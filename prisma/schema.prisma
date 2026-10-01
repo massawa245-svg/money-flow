@@ -48,6 +48,8 @@ model User {
   currencyBalances  CurrencyBalance[]
   exchanges         CurrencyExchange[]
   swanAccount       SwanAccount?
+  payoutAccount     PayoutAccount?
+  payouts           Payout[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -262,4 +264,43 @@ model SwanAccount {
   bic          String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+// Gespeichertes Auszahlungsziel in Äthiopien (telebirr, M-Pesa, Bank) – über Chapa (Testmodus)
+model PayoutAccount {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankCode      Int
+  bankName      String
+  accountNumber String
+  accountName   String
+  autoPayout    Boolean  @default(false) // Händler: jede QR-Zahlung sofort auszahlen
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Auszahlung nach Äthiopien über Chapa (Testmodus, kein echtes Geld)
+model Payout {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  amount            Float // vom Guthaben abgebucht
+  currency          String
+  payoutAmount      Float // beim Empfänger
+  payoutCurrency    String   @default("ETB")
+  fee               Float    @default(0)
+  rate              Float    @default(1)
+  bankCode          Int
+  bankName          String
+  accountNumber     String
+  accountName       String
+  status            String   @default("PROCESSING") // PROCESSING | SUCCESS | FAILED
+  reference         String   @unique // an Chapa übergebene Referenz
+  merchantPaymentId String?  @unique // gesetzt bei automatischer Händler-Auszahlung
+  failureReason     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
 }
