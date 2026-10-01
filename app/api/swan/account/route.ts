@@ -22,7 +22,19 @@ const ACCOUNT_QUERY = `query($id: ID!) {
   }
 }`
 
-// GET – Status des Swan-Kontos inkl. IBAN, Kontostand und letzten Umsätzen
+const CARDS_QUERY = `query($id: ID!) {
+  accountMembership(id: $id) {
+    user { fullName }
+    cards(first: 10) {
+      edges { node {
+        id name type cardMaskedNumber expiryDate
+        statusInfo { status ... on CardConsentPendingStatusInfo { consent { consentUrl } } }
+      } }
+    }
+  }
+}`
+
+// GET – Status des Swan-Kontos inkl. IBAN, Kontostand, letzten Umsätzen und Karten
 export async function GET(request: Request) {
   try {
     const user = await getAuthenticatedUser(request)
@@ -46,8 +58,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ ...base, status: swan?.status ?? 'NONE' })
     }
 
-    const data = await swanQuery(ACCOUNT_QUERY, { id: swan.accountId })
+    const [data, membership] = await Promise.all([
+      swanQuery(ACCOUNT_QUERY, { id: swan.accountId }),
+      swan.membershipId ? swanQuery(CARDS_QUERY, { id: swan.membershipId }).catch(() => null) : null,
+    ])
     const account = data.account
+    const cards = (membership?.accountMembership?.cards?.edges ?? [])
+      .map((e: any) => e.node)
+      .filter((c: any) => !['Canceled', 'Canceling'].includes(c.statusInfo?.status))
+      .map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        type: c.type,
+        maskedNumber: c.cardMaskedNumber,
+        expiryDate: c.expiryDate,
+        status: c.statusInfo?.status,
+        consentUrl: c.statusInfo?.consent?.consentUrl ?? null,
+      }))
     if (account?.IBAN && account.IBAN !== swan.iban) {
       await prisma.swanAccount.update({ where: { id: swan.id }, data: { iban: account.IBAN, bic: account.BIC } })
     }
@@ -62,6 +89,8 @@ export async function GET(request: Request) {
         accountStatus: account.statusInfo?.status,
         balances: account.balances,
         transactions: (account.transactions?.edges ?? []).map((e: any) => e.node),
+        holderName: membership?.accountMembership?.user?.fullName ?? null,
+        cards,
       },
     })
   } catch (error) {

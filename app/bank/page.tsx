@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Icon } from "@/components/Icon"
 import { formatMoney } from "@/lib/transfer-display"
+import { MassawaCard } from "@/components/MassawaCard"
 
 // ⚠️ SWAN-SANDBOX: Echtes Konto mit Test-IBAN und Test-Geld – kein echtes Geld
 
@@ -20,6 +21,16 @@ type SwanTransaction = {
   statusInfo: { status: string }
 }
 
+type SwanCard = {
+  id: string
+  name: string | null
+  type: string
+  maskedNumber: string
+  expiryDate: string | null
+  status: 'ConsentPending' | 'Processing' | 'Enabled'
+  consentUrl: string | null
+}
+
 type BankData = {
   configured: boolean
   kycStatus: string
@@ -33,6 +44,8 @@ type BankData = {
     accountStatus: string
     balances: Record<'available' | 'booked' | 'pending', { value: string; currency: string }> | null
     transactions: SwanTransaction[]
+    holderName: string | null
+    cards: SwanCard[]
   }
 }
 
@@ -110,6 +123,12 @@ function Bank() {
           <div className="mb-6 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
             <Icon name="check" className="w-6 h-6 shrink-0" />
             <span className="font-semibold">Dein Konto ist eröffnet – deine IBAN ist bereit.</span>
+          </div>
+        )}
+        {params.get('card') === 'ordered' && data?.status === 'OPEN' && (
+          <div className="mb-6 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
+            <Icon name="check" className="w-6 h-6 shrink-0" />
+            <span className="font-semibold">Deine Massawa Card ist bestellt.</span>
           </div>
         )}
         {errorKey && data?.status !== 'OPEN' && (
@@ -222,6 +241,8 @@ function AccountView({ account, onRefresh }: { account: NonNullable<BankData['ac
         </div>
       </div>
 
+      <CardsSection cards={account.cards} holderName={account.holderName} onChange={onRefresh} />
+
       <div className="bg-amber-50 border border-amber-200 text-amber-900 text-sm rounded-2xl p-4">
         Sandbox: Das ist ein echtes Konto bei unserem Bankpartner Swan, aber mit Testgeld. Überweisungen auf diese IBAN
         kannst du im Swan-Dashboard unter <em>Sandbox → Simulator</em> auslösen.
@@ -324,14 +345,19 @@ function OpenAccount({ data }: { data: BankData }) {
           <h1 className="text-2xl sm:text-3xl font-bold mt-4">Dein eigenes Konto mit IBAN</h1>
           <p className="text-blue-100 mt-2 max-w-lg">
             Eröffne in wenigen Minuten ein Konto bei unserem lizenzierten Bankpartner Swan – mit deutscher IBAN,
-            SEPA-Überweisungen und bald deiner eigenen Mastercard.
+            SEPA-Überweisungen und deiner eigenen Massawa Mastercard.
           </p>
           <div className="flex flex-wrap gap-2 mt-5 text-sm">
-            {['Deutsche IBAN', 'SEPA & Echtzeit', 'Mastercard (bald)'].map((f) => (
+            {['Deutsche IBAN', 'SEPA & Echtzeit', 'Massawa Mastercard'].map((f) => (
               <span key={f} className="bg-white/15 px-3 py-1 rounded-full">{f}</span>
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="flex flex-col items-center gap-3 py-2">
+        <MassawaCard holderName={[prefill.firstName, prefill.lastName].filter(Boolean).join(' ') || null} />
+        <p className="text-sm text-gray-500">Deine Massawa Card – virtuelle Mastercard, direkt nach der Kontoeröffnung</p>
       </div>
 
       {data.status === 'ONBOARDING' && (
@@ -451,6 +477,109 @@ function OpenAccount({ data }: { data: BankData }) {
           Im nächsten Schritt bestätigst du bei Swan deine Handynummer und Identität. Danach kommst du automatisch hierher zurück.
         </p>
       </form>
+    </div>
+  )
+}
+
+function CardsSection({ cards, holderName, onChange }: { cards: SwanCard[]; holderName: string | null; onChange: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  const act = async (action: 'add' | 'view' | 'cancel', cardId?: string) => {
+    if (action === 'cancel' && !confirm('Karte wirklich kündigen? Das kann nicht rückgängig gemacht werden.')) return
+    setError('')
+    setBusy(cardId ? `${action}-${cardId}` : action)
+    try {
+      const res = await fetch('/api/swan/cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, cardId }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setError(json.error || 'Aktion fehlgeschlagen')
+        return
+      }
+      // Bestellen und Kartendaten anzeigen bestätigt der Nutzer auf der Swan-Seite (SCA)
+      if (json.consentUrl) {
+        window.location.href = json.consentUrl
+        return
+      }
+      onChange()
+    } catch {
+      setError('Netzwerkfehler. Bitte versuche es erneut.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const button = 'px-4 py-2 rounded-xl text-sm font-semibold transition disabled:opacity-50'
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-gray-900">Massawa Card</h2>
+        <span className="text-xs text-gray-500">Virtuelle Mastercard · Limit 1.000 € / Monat</span>
+      </div>
+
+      {cards.length === 0 ? (
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          <MassawaCard holderName={holderName} dimmed className="sm:max-w-[260px]" />
+          <div className="space-y-3 text-center sm:text-left">
+            <p className="text-gray-600 text-sm">
+              Bezahle online, im Laden und mit Apple Pay oder Google Pay – direkt von deinem Massawa-Konto.
+            </p>
+            <button onClick={() => act('add')} disabled={busy !== null} className={`${button} bg-blue-600 text-white hover:bg-blue-700`}>
+              {busy === 'add' ? 'Wird vorbereitet …' : 'Karte kostenlos bestellen'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        cards.map((card) => (
+          <div key={card.id} className="flex flex-col sm:flex-row items-center gap-6">
+            <MassawaCard
+              holderName={holderName}
+              maskedNumber={card.maskedNumber}
+              expiryDate={card.expiryDate}
+              label={card.type === 'Virtual' ? 'Virtual' : 'Debit'}
+              dimmed={card.status !== 'Enabled'}
+              className="sm:max-w-[300px]"
+            />
+            <div className="space-y-3 w-full sm:w-auto text-center sm:text-left">
+              {card.status === 'Enabled' && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold bg-green-50 text-green-700 px-2.5 py-1 rounded-full">
+                  <Icon name="check" className="w-3.5 h-3.5" /> Aktiv
+                </span>
+              )}
+              {card.status === 'Processing' && (
+                <span className="inline-flex text-xs font-semibold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full">Wird ausgestellt …</span>
+              )}
+              {card.status === 'ConsentPending' && (
+                <div className="space-y-2">
+                  <span className="inline-flex text-xs font-semibold bg-amber-50 text-amber-800 px-2.5 py-1 rounded-full">Bestätigung ausstehend</span>
+                  {card.consentUrl && (
+                    <a href={card.consentUrl} className={`${button} block bg-blue-600 text-white hover:bg-blue-700 text-center`}>
+                      Bei Swan bestätigen
+                    </a>
+                  )}
+                </div>
+              )}
+              {card.status === 'Enabled' && (
+                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                  <button onClick={() => act('view', card.id)} disabled={busy !== null} className={`${button} bg-gray-900 text-white hover:bg-gray-800`}>
+                    {busy === `view-${card.id}` ? '…' : 'Kartendaten anzeigen'}
+                  </button>
+                  <button onClick={() => act('cancel', card.id)} disabled={busy !== null} className={`${button} bg-white border border-gray-300 text-gray-700 hover:border-red-400 hover:text-red-600`}>
+                    Kündigen
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))
+      )}
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   )
 }
