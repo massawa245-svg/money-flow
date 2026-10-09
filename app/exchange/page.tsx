@@ -4,12 +4,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Icon } from "@/components/Icon"
 import { formatMoney } from "@/lib/transfer-display"
-
-const CURRENCIES = [
-  { code: "EUR", label: "Euro" },
-  { code: "USD", label: "US-Dollar" },
-  { code: "ETB", label: "Äthiopischer Birr" },
-] as const
+import { CURRENCIES } from "@/lib/currencies"
 
 type Quote = {
   fromCurrency: string
@@ -158,8 +153,8 @@ export default function ExchangePage() {
                     onChange={(e) => setAmount(e.target.value)}
                     className="flex-1 min-w-0 px-4 py-3 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500"
                   />
-                  <select value={from} onChange={(e) => setFrom(e.target.value)} className="px-3 py-3 border border-gray-300 rounded-lg bg-white">
-                    {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code}</option>)}
+                  <select value={from} onChange={(e) => setFrom(e.target.value)} className="w-40 sm:w-52 px-3 py-3 border border-gray-300 rounded-lg bg-white">
+                    {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.code} – {c.name}</option>)}
                   </select>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Verfügbar: {formatMoney(available, from)}</p>
@@ -177,8 +172,8 @@ export default function ExchangePage() {
                   <div className="flex-1 min-w-0 px-4 py-3 border border-gray-200 bg-gray-50 rounded-lg text-lg font-semibold">
                     {loadingQuote ? "…" : quote ? quote.toAmount.toLocaleString("de-DE", { minimumFractionDigits: 2 }) : "–"}
                   </div>
-                  <select value={to} onChange={(e) => setTo(e.target.value)} className="px-3 py-3 border border-gray-300 rounded-lg bg-white">
-                    {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code}</option>)}
+                  <select value={to} onChange={(e) => setTo(e.target.value)} className="w-40 sm:w-52 px-3 py-3 border border-gray-300 rounded-lg bg-white">
+                    {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.flag} {c.code} – {c.name}</option>)}
                   </select>
                 </div>
               </div>

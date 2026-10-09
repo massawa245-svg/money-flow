@@ -11,6 +11,9 @@ export interface TransferItem {
   sender: { email: string; name?: string | null }
   recipient: { email: string; name?: string | null }
   exchange?: { toAmount: number; toCurrency: string; rate: number }
+  // Auslandsüberweisung: Empfänger bekam eine andere Währung
+  recipientAmount?: number | null
+  recipientCurrency?: string | null
 }
 
 export type TransferKind = 'deposit' | 'withdrawal' | 'exchange' | 'sent' | 'received'
@@ -52,6 +55,12 @@ export function formatMoney(amount: number, currency = 'EUR') {
 export function amountLabel(t: TransferItem, kind: TransferKind) {
   if (kind === 'exchange' && t.exchange) {
     return `${formatMoney(t.amount, t.currency)} → ${formatMoney(t.exchange.toAmount, t.exchange.toCurrency)}`
+  }
+  if (kind === 'received' && t.recipientCurrency && t.recipientAmount != null) {
+    return `+ ${formatMoney(t.recipientAmount, t.recipientCurrency)}`
+  }
+  if (kind === 'sent' && t.recipientCurrency && t.recipientAmount != null) {
+    return `− ${formatMoney(t.amount, t.currency)} (→ ${formatMoney(t.recipientAmount, t.recipientCurrency)})`
   }
   return `${isOutgoing(kind) ? '−' : '+'} ${formatMoney(t.amount, t.currency)}`
 }

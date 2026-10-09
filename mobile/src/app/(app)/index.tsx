@@ -4,10 +4,13 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '@/components/icon';
+import { SideMenu } from '@/components/side-menu';
 import { FontFamily, Palette, Radius } from '@/constants/theme';
 import { api, type Overview, type Transfer } from '@/lib/api';
 import { useSession } from '@/lib/auth-context';
+import { currencyInfo } from '@/lib/currencies';
 import { formatAmount, formatDate, formatMoney } from '@/lib/format';
+import { isBalanceHidden, setBalanceHidden } from '@/lib/preferences';
 
 function greeting() {
   const hour = new Date().getHours();
@@ -22,6 +25,8 @@ export default function HomeScreen() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
 
   const email = session?.user.email ?? '';
   const name = (session?.user.user_metadata?.full_name as string | undefined) || email.split('@')[0];
@@ -39,8 +44,14 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
+      isBalanceHidden().then(setHidden);
     }, [load])
   );
+
+  function toggleHidden() {
+    setHidden(!hidden);
+    setBalanceHidden(!hidden);
+  }
 
   async function onRefresh() {
     setRefreshing(true);
@@ -56,26 +67,46 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Palette.forest} />}>
         <View style={styles.header}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Menü öffnen"
+            onPress={() => setMenuOpen(true)}
+            style={({ pressed }) => [styles.headerButton, pressed && { opacity: 0.7 }]}>
+            <Icon name="menu" size={22} color={Palette.ink} />
+          </Pressable>
           <View style={styles.headerText}>
             <Text style={styles.greeting}>{greeting()}</Text>
             <Text style={styles.name} numberOfLines={1}>
               {name}
             </Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="Profil" onPress={() => router.push('/profile')} style={styles.avatar}>
-            <Icon name="user" size={22} color={Palette.ink} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Profil"
+            onPress={() => router.push('/profile')}
+            style={({ pressed }) => [styles.avatar, pressed && { opacity: 0.7 }]}>
+            <Text style={styles.avatarInitial}>{name.charAt(0).toUpperCase()}</Text>
           </Pressable>
         </View>
 
         <View style={styles.balanceCard}>
           <View style={styles.balanceText}>
-            <Text style={styles.balanceLabel}>Verfügbares Guthaben</Text>
+            <View style={styles.balanceTop}>
+              <Text style={styles.balanceLabel}>Verfügbares Guthaben</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={hidden ? 'Guthaben anzeigen' : 'Guthaben verbergen'}
+                hitSlop={12}
+                onPress={toggleHidden}>
+                <Icon name={hidden ? 'eyeOff' : 'eye'} size={20} color={Palette.mint} />
+              </Pressable>
+            </View>
             {overview ? (
               <>
                 <Text style={styles.balance}>
-                  {formatAmount(overview.balance)} <Text style={styles.balanceCurrency}>{currency}</Text>
+                  {hidden ? '••••••' : formatAmount(overview.balance)} <Text style={styles.balanceCurrency}>{currency}</Text>
                 </Text>
-                {overview.balances?.length > 1 ? (
+                {!hidden && overview.balances?.length > 1 ? (
                   <Text style={styles.otherBalances}>
                     {overview.balances.slice(1).map((b) => formatMoney(b.amount, b.currency)).join('  ·  ')}
                   </Text>
@@ -152,6 +183,14 @@ export default function HomeScreen() {
           <Text style={styles.tabLabel}>Senden</Text>
         </Pressable>
       </View>
+
+      <SideMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        name={name}
+        email={email}
+        kycStatus={overview?.kycStatus}
+      />
     </SafeAreaView>
   );
 }
@@ -181,12 +220,21 @@ function TransferRow({ transfer, myEmail }: { transfer: Transfer; myEmail: strin
         ? 'Einzahlung'
         : 'Auszahlung'
       : other.name || other.email;
+  // Auslandsüberweisung: Empfänger bekam eine andere Währung
+  const foreign =
+    transfer.recipientCurrency && transfer.recipientAmount != null
+      ? { amount: transfer.recipientAmount, currency: transfer.recipientCurrency }
+      : null;
+  // "Einzahlung per Visa (Test)" → "per Visa · Test"
+  const method = transfer.reference?.match(/ (per .+?) \(Test\)$/)?.[1];
   const label = exchange
     ? `${formatMoney(transfer.amount, transfer.currency)} gewechselt`
     : walletAction
-      ? 'Testmodus'
+      ? method ? `${method} · Test` : 'Testmodus'
       : outgoing
-        ? 'Gesendet'
+        ? foreign
+          ? `Gesendet ${currencyInfo(foreign.currency)?.flag ?? ''} ${formatMoney(foreign.amount, foreign.currency)}`
+          : 'Gesendet'
         : 'Erhalten';
 
   return (
@@ -205,7 +253,9 @@ function TransferRow({ transfer, myEmail }: { transfer: Transfer; myEmail: strin
       <Text style={[styles.rowAmount, { color: exchange ? Palette.ink : outgoing ? Palette.ink : Palette.positive }]}>
         {exchange
           ? `+ ${formatMoney(exchange.toAmount, exchange.toCurrency)}`
-          : `${outgoing ? '− ' : '+ '}${formatMoney(transfer.amount, transfer.currency)}`}
+          : !outgoing && foreign
+            ? `+ ${formatMoney(foreign.amount, foreign.currency)}`
+            : `${outgoing ? '− ' : '+ '}${formatMoney(transfer.amount, transfer.currency)}`}
       </Text>
     </View>
   );
@@ -214,7 +264,15 @@ function TransferRow({ transfer, myEmail }: { transfer: Transfer; myEmail: strin
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Palette.sand },
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32, gap: 24 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Palette.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerText: { flex: 1, gap: 2 },
   greeting: { fontFamily: FontFamily.body, fontSize: 14, color: Palette.inkMuted },
   name: { fontFamily: FontFamily.display, fontSize: 22, color: Palette.ink },
@@ -222,12 +280,14 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Palette.sandDeep,
+    backgroundColor: Palette.forest,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarInitial: { fontFamily: FontFamily.display, fontSize: 18, color: Palette.white },
   balanceCard: { padding: 24, borderRadius: Radius.card, backgroundColor: Palette.forest },
   balanceText: { gap: 6 },
+  balanceTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   balanceLabel: { fontFamily: FontFamily.body, fontSize: 14, color: Palette.mint },
   otherBalances: { fontFamily: FontFamily.bodyMedium, fontSize: 14, color: Palette.mint, marginTop: 4 },
   balance: {

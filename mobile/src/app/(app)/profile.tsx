@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '@/components/icon';
@@ -9,12 +10,6 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { FontFamily, Palette, Radius } from '@/constants/theme';
 import { api, type KycProfile } from '@/lib/api';
 import { useSession } from '@/lib/auth-context';
-import {
-  authenticateBiometric,
-  biometricAvailable,
-  isBiometricLockEnabled,
-  setBiometricLockEnabled,
-} from '@/lib/biometric';
 import { takeKycPhoto, uploadKycPhoto, type KycPhoto } from '@/lib/kyc-upload';
 
 type FieldKey = 'firstName' | 'lastName' | 'dateOfBirth' | 'street' | 'postalCode' | 'city' | 'country';
@@ -68,6 +63,7 @@ const STATUS: Record<KycProfile['kycStatus'], { icon: IconName; title: string; t
 };
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { session, signOut } = useSession();
   const [kyc, setKyc] = useState<KycProfile | null>(null);
   const [form, setForm] = useState<Record<FieldKey, string>>({
@@ -76,8 +72,6 @@ export default function ProfileScreen() {
   const [photos, setPhotos] = useState<Partial<Record<PhotoKey, KycPhoto>>>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [bioAvailable, setBioAvailable] = useState(false);
-  const [bioEnabled, setBioEnabled] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -95,16 +89,7 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     load();
-    biometricAvailable().then(setBioAvailable);
-    isBiometricLockEnabled().then(setBioEnabled);
   }, [load]);
-
-  async function toggleBiometric(value: boolean) {
-    // Einschalten nur nach erfolgreichem Fingerabdruck, damit niemand fremdes es aktiviert
-    if (value && !(await authenticateBiometric('Fingerabdruck bestätigen'))) return;
-    await setBiometricLockEnabled(value);
-    setBioEnabled(value);
-  }
 
   async function capture(key: PhotoKey, kind: 'document' | 'selfie') {
     setError(null);
@@ -228,25 +213,17 @@ export default function ProfileScreen() {
 
         {!canSubmit && error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sicherheit</Text>
-          <View style={styles.settingRow}>
-            <Icon name="fingerprint" size={24} color={Palette.forest} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.settingTitle}>Mit Fingerabdruck entsperren</Text>
-              <Text style={styles.settingText}>
-                {bioAvailable ? 'Beim Öffnen der App statt Passwort' : 'Auf diesem Gerät ist kein Fingerabdruck eingerichtet'}
-              </Text>
-            </View>
-            <Switch
-              value={bioEnabled}
-              onValueChange={toggleBiometric}
-              disabled={!bioAvailable}
-              trackColor={{ true: Palette.forest, false: Palette.line }}
-              thumbColor={Palette.white}
-            />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/settings')}
+          style={({ pressed }) => [styles.settingRow, pressed && { opacity: 0.85 }]}>
+          <Icon name="settings" size={24} color={Palette.forest} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.settingTitle}>Einstellungen</Text>
+            <Text style={styles.settingText}>Fingerabdruck, Guthaben verbergen, App-Infos</Text>
           </View>
-        </View>
+          <Icon name="chevron" size={18} color={Palette.inkFaint} />
+        </Pressable>
 
         <Button label="Abmelden" variant="secondary" onPress={signOut} />
       </ScrollView>

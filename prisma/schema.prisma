@@ -65,6 +65,11 @@ model Transfer {
   status    String  @default("COMPLETED")
   reference String?
 
+  // Auslandsüberweisung: Empfänger bekommt eine andere Währung (Testmodus, Kurs inkl. Aufschlag)
+  recipientAmount   Float?
+  recipientCurrency String?
+  fee               Float?
+
   senderId    String
   recipientId String
   sender      User   @relation("sender", fields: [senderId], references: [id])

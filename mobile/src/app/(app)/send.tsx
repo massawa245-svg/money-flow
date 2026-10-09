@@ -3,12 +3,14 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CurrencySelect } from '@/components/currency-select';
 import { Icon } from '@/components/icon';
 import { Button } from '@/components/ui/button';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { FontFamily, Palette, Radius } from '@/constants/theme';
-import { api, type Overview } from '@/lib/api';
-import { formatAmount } from '@/lib/format';
+import { api, ApiError, type FxQuote, type Overview } from '@/lib/api';
+import { currencyInfo } from '@/lib/currencies';
+import { formatAmount, formatMoney } from '@/lib/format';
 import { KEYS, applyKey } from '@/lib/keypad';
 
 // "12.5" aus dem Link → "12,5" für die Tastatur-Eingabe
@@ -28,7 +30,12 @@ export default function SendScreen() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState<{ amount: number; to: string } | null>(null);
+  const [sent, setSent] = useState<{ amount: number; to: string; received?: FxQuote } | null>(null);
+  // Zielland über seine Währung; ohne Auswahl = eigene Währung (Inland)
+  const [chosenCurrency, setChosenCurrency] = useState<string | null>(null);
+  const [quote, setQuote] = useState<FxQuote | null>(null);
+  const [loadingQuote, setLoadingQuote] = useState(false);
+  const [quoteVersion, setQuoteVersion] = useState(0);
 
   useEffect(() => {
     api.getOverview().then(setOverview, () => {});
@@ -37,16 +44,40 @@ export default function SendScreen() {
   const amount = Number((amountText || '0').replace(',', '.'));
   const currency = overview?.currency ?? '';
   const [whole, fraction] = amountText ? amountText.split(',') : ['0', undefined];
-  const canSend = recipient.includes('@') && amount > 0 && !sending;
+  const toCurrency = chosenCurrency ?? currency;
+  const crossBorder = !!currency && toCurrency !== currency;
+  const canSend = recipient.includes('@') && amount > 0 && !sending && (!crossBorder || (!!quote && !loadingQuote));
+
+  // Auslandsüberweisung: live anzeigen, was beim Empfänger ankommt (kurz verzögert beim Tippen)
+  useEffect(() => {
+    setQuote(null);
+    if (!crossBorder || !(amount >= 1)) return;
+    setLoadingQuote(true);
+    const timer = setTimeout(() => {
+      api
+        .getFxQuote(currency, toCurrency, amount)
+        .then(({ quote }) => setQuote(quote))
+        .catch((e: Error) => setError(e.message))
+        .finally(() => setLoadingQuote(false));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [crossBorder, currency, toCurrency, amount, quoteVersion]);
 
   async function handleSend() {
     setError(null);
     setSending(true);
     try {
-      await api.sendTransfer({ recipientEmail: recipient.trim(), amount, reference: reference.trim() });
-      setSent({ amount, to: recipient.trim() });
+      await api.sendTransfer({
+        recipientEmail: recipient.trim(),
+        amount,
+        reference: reference.trim(),
+        ...(crossBorder && quote ? { toCurrency, expectedToAmount: quote.toAmount } : {}),
+      });
+      setSent({ amount, to: recipient.trim(), received: crossBorder ? quote ?? undefined : undefined });
     } catch (e) {
       setError((e as Error).message);
+      // Kurs hat sich geändert: neuen Kurs laden, Kunde bestätigt erneut
+      if (e instanceof ApiError && e.status === 409) setQuoteVersion((v) => v + 1);
     } finally {
       setSending(false);
     }
@@ -64,6 +95,11 @@ export default function SendScreen() {
             {formatAmount(sent.amount)} <Text style={styles.successCurrency}>{currency}</Text>
           </Text>
           <Text style={styles.successMeta}>an {sent.to}</Text>
+          {sent.received ? (
+            <Text style={styles.successMeta}>
+              {currencyInfo(sent.received.toCurrency)?.flag} erhält {formatMoney(sent.received.toAmount, sent.received.toCurrency)}
+            </Text>
+          ) : null}
         </View>
         <Button label="Fertig" variant="light" onPress={() => router.replace('/')} />
       </SafeAreaView>
@@ -74,6 +110,19 @@ export default function SendScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <ScreenHeader title="Geld senden" />
+
+        <View style={styles.field}>
+          <Text style={styles.label}>Empfängerland</Text>
+          <CurrencySelect
+            value={toCurrency || 'EUR'}
+            onChange={(c) => {
+              setError(null);
+              setChosenCurrency(c);
+            }}
+            label="Empfängerland"
+            variant="country"
+          />
+        </View>
 
         <View style={styles.field}>
           <Text style={styles.label} nativeID="to-label">
@@ -102,6 +151,24 @@ export default function SendScreen() {
             {overview ? ` · Guthaben ${formatAmount(overview.balance)}` : ''}
           </Text>
         </View>
+
+        {crossBorder ? (
+          <View style={styles.quoteCard}>
+            <Text style={styles.quoteFlag}>{currencyInfo(toCurrency)?.flag}</Text>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.quoteLabel}>Empfänger erhält</Text>
+              <Text style={styles.quoteAmount}>
+                {loadingQuote ? '…' : quote ? formatMoney(quote.toAmount, toCurrency) : `– ${toCurrency}`}
+              </Text>
+              {quote ? (
+                <Text style={styles.quoteMeta}>
+                  1 {currency} = {quote.rate.toLocaleString('de-DE', { maximumFractionDigits: quote.rate < 1 ? 6 : 4 })} {toCurrency} · Gebühr{' '}
+                  {formatMoney(quote.fee, currency)}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.field}>
           <Text style={styles.label} nativeID="ref-label">
@@ -175,6 +242,18 @@ const styles = StyleSheet.create({
   },
   amountFraction: { color: Palette.inkFaint },
   amountMeta: { fontFamily: FontFamily.body, fontSize: 14, color: Palette.inkMuted },
+  quoteCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: Radius.card,
+    backgroundColor: Palette.white,
+  },
+  quoteFlag: { fontSize: 32 },
+  quoteLabel: { fontFamily: FontFamily.body, fontSize: 13, color: Palette.inkMuted },
+  quoteAmount: { fontFamily: FontFamily.display, fontSize: 24, color: Palette.forest, fontVariant: ['tabular-nums'] },
+  quoteMeta: { fontFamily: FontFamily.body, fontSize: 12, color: Palette.inkMuted },
   keypad: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 6, marginTop: 'auto' },
   key: { width: '33.333%', height: 52, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   keyText: { fontFamily: FontFamily.bodyMedium, fontSize: 24, color: Palette.ink },

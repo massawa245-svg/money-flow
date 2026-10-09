@@ -1,13 +1,16 @@
 // Geldwechsel im Testmodus: echte Marktkurse, konfigurierbarer Aufschlag, Buchung nur in der Datenbank.
 // Später wird getMarketRate() durch den Kurs des regulierten Partners ersetzt.
 
-export const SUPPORTED_CURRENCIES = ['EUR', 'USD', 'ETB'] as const
-export type Currency = (typeof SUPPORTED_CURRENCIES)[number]
+import { CURRENCIES } from '@/lib/currencies'
+
+export const SUPPORTED_CURRENCIES = CURRENCIES.map((c) => c.code)
+export type Currency = (typeof CURRENCIES)[number]['code']
 
 const RATES_URL = 'https://open.er-api.com/v6/latest/EUR'
 const CACHE_MS = 10 * 60 * 1000
 const MIN_AMOUNT = 1
-const MAX_AMOUNT = 1_000_000
+// Obergrenze im Gegenwert in EUR, damit sie auch für UGX/SSP (tausende pro Euro) passt
+const MAX_EUR_VALUE = 1_000_000
 
 // Aufschlag auf den Marktkurs in Prozent (Einnahme), per Umgebungsvariable einstellbar
 export function markupPercent() {
@@ -47,8 +50,11 @@ export const round2 = (n: number) => Math.round(n * 100) / 100
 
 export async function quoteExchange(from: Currency, to: Currency, amount: number) {
   if (from === to) throw new Error('Bitte zwei verschiedene Währungen wählen')
-  if (!Number.isFinite(amount) || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
-    throw new Error(`Betrag muss zwischen ${MIN_AMOUNT} und ${MAX_AMOUNT.toLocaleString('de-DE')} liegen`)
+  if (!Number.isFinite(amount) || amount < MIN_AMOUNT) {
+    throw new Error(`Betrag muss mindestens ${MIN_AMOUNT} ${from} sein`)
+  }
+  if (amount / (await getMarketRate('EUR', from)) > MAX_EUR_VALUE) {
+    throw new Error(`Betrag ist zu hoch (max. ${MAX_EUR_VALUE.toLocaleString('de-DE')} € Gegenwert)`)
   }
   const fromAmount = round2(amount)
   const marketRate = await getMarketRate(from, to)

@@ -4,7 +4,11 @@ import { NextResponse } from 'next/server'
 import { ratelimit } from '@/lib/rate-limit'
 import { validateTransfer } from '@/lib/validator'
 import { requireVerified } from '@/lib/kyc'
-import { getBalances } from '@/lib/balances'
+import { credit, debit, getBalances } from '@/lib/balances'
+import { isCurrency, quoteExchange } from '@/lib/fx'
+
+// Weicht der Kurs beim Senden stärker ab als angezeigt, muss der Kunde neu bestätigen
+const MAX_DEVIATION = 0.005
 
 // GET - Transfers und Balance abrufen (für Dashboard)
 export async function GET(request: Request) {
@@ -117,13 +121,17 @@ export async function GET(request: Request) {
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
 
+    const swan = await prisma.swanAccount.findUnique({ where: { userId: dbUser.id }, select: { iban: true, status: true } })
+
     return NextResponse.json({
       success: true,
       transfers: activity,
       balance: dbUser.balance,
       currency: dbUser.currency,
       balances: await getBalances(dbUser),
-      kycStatus: dbUser.kycStatus
+      kycStatus: dbUser.kycStatus,
+      // Swan-Sandbox-IBAN für Einzahlungen per Überweisung (falls Konto eröffnet)
+      depositIban: swan?.status === 'OPEN' ? swan.iban : null
     })
 
   } catch (error: any) {
@@ -161,7 +169,10 @@ export async function POST(request: Request) {
     }
 
     // 📦 2. Daten aus Request holen
-    const { recipientEmail, amount, reference } = await request.json()
+    const { recipientEmail, amount, reference, toCurrency, expectedToAmount } = await request.json()
+    if (toCurrency !== undefined && !isCurrency(toCurrency)) {
+      return NextResponse.json({ error: 'Nicht unterstützte Währung' }, { status: 400 })
+    }
 
     // 🔒 3. INPUT VALIDIERUNG
     const validationErrors = validateTransfer({ recipientEmail, amount, reference })
@@ -181,66 +192,58 @@ export async function POST(request: Request) {
     }
 
     // 🔒 5. Nur verifizierte Konten dürfen Geld senden
-    const blocked = requireVerified(await prisma.user.findUnique({ where: { email: user.email! } }))
-    if (blocked) return blocked
+    const senderUser = await prisma.user.findUnique({ where: { email: user.email! } })
+    const blocked = requireVerified(senderUser)
+    if (blocked || !senderUser) return blocked!
 
-    // Transfer mit Prisma durchführen
+    // 6. Auslandsüberweisung: Empfänger bekommt die Währung seines Landes (Kurs inkl. Aufschlag)
+    const sendAmount = Math.round(amount * 100) / 100
+    let quote: Awaited<ReturnType<typeof quoteExchange>> | null = null
+    if (toCurrency && toCurrency !== senderUser.currency) {
+      if (!isCurrency(senderUser.currency)) {
+        return NextResponse.json({ error: `Senden aus ${senderUser.currency} wird nicht unterstützt` }, { status: 400 })
+      }
+      try {
+        quote = await quoteExchange(senderUser.currency, toCurrency, sendAmount)
+      } catch (e: any) {
+        return NextResponse.json({ error: e.message }, { status: 400 })
+      }
+      if (typeof expectedToAmount === 'number' && expectedToAmount > 0) {
+        const deviation = Math.abs(quote.toAmount - expectedToAmount) / expectedToAmount
+        if (deviation > MAX_DEVIATION) {
+          return NextResponse.json(
+            { error: 'Der Kurs hat sich geändert. Bitte prüfe den neuen Betrag.', code: 'RATE_CHANGED', quote },
+            { status: 409 }
+          )
+        }
+      }
+    }
+
     const transfer = await prisma.$transaction(async (tx) => {
-      // 5. Sender finden oder erstellen
-      let sender = await tx.user.findUnique({
-        where: { email: user.email! }
-      })
-      
-      if (!sender) {
-        console.log("📝 Sender existiert nicht, lege an...")
-        sender = await tx.user.create({
-          data: {
-            email: user.email!,
-            name: user.user_metadata?.full_name || user.email!.split('@')[0],
-            balance: 1000.00
-          }
-        })
-      }
-      
-      if (sender.balance < amount) throw new Error('Nicht genügend Guthaben')
-      
-      // 6. Recipient finden ODER ERSTELLEN
-      let recipient = await tx.user.findUnique({
-        where: { email: recipientEmail }
-      })
-      
+      // 7. Empfänger finden oder anlegen
+      let recipient = await tx.user.findUnique({ where: { email: recipientEmail } })
       if (!recipient) {
-        console.log("📝 Empfänger existiert nicht, lege an...")
         recipient = await tx.user.create({
-          data: {
-            email: recipientEmail,
-            name: recipientEmail.split('@')[0],
-            balance: 1000.00
-          }
+          data: { email: recipientEmail, name: recipientEmail.split('@')[0], balance: 1000.00 }
         })
-        console.log("✅ Empfänger angelegt mit ID:", recipient.id)
       }
-      
-      // 7. Balances aktualisieren
-      await tx.user.update({
-        where: { id: sender.id },
-        data: { balance: { decrement: amount } }
-      })
-      
-      await tx.user.update({
-        where: { id: recipient.id },
-        data: { balance: { increment: amount } }
-      })
-      
-      // 8. Transfer speichern
-      return await tx.transfer.create({
+
+      // 8. Abbuchen (nur wenn das Guthaben reicht) und gutschreiben
+      if (!(await debit(tx, senderUser, senderUser.currency, sendAmount))) throw new Error('Nicht genügend Guthaben')
+      if (quote) await credit(tx, recipient, quote.toCurrency, quote.toAmount)
+      else await credit(tx, recipient, senderUser.currency, sendAmount)
+
+      // 9. Transfer speichern
+      return tx.transfer.create({
         data: {
-          amount,
-          senderId: sender.id,
+          amount: sendAmount,
+          currency: senderUser.currency,
+          senderId: senderUser.id,
           recipientId: recipient.id,
           reference: reference || '',
           status: 'COMPLETED',
-          completedAt: new Date()
+          completedAt: new Date(),
+          ...(quote ? { recipientAmount: quote.toAmount, recipientCurrency: quote.toCurrency, fee: quote.fee } : {})
         },
         include: {
           sender: { select: { email: true, name: true } },

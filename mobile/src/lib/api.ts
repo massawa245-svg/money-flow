@@ -33,6 +33,9 @@ export type Transfer = {
   recipient: TransferParty;
   // nur bei Geldwechsel (status EXCHANGE)
   exchange?: { toAmount: number; toCurrency: string; rate: number };
+  // Auslandsüberweisung: Empfänger bekam eine andere Währung
+  recipientAmount?: number | null;
+  recipientCurrency?: string | null;
 };
 
 export type Balance = { currency: string; amount: number };
@@ -57,7 +60,10 @@ export type Overview = {
   balances: Balance[];
   kycStatus: KycStatus;
   transfers: Transfer[];
+  depositIban?: string | null;
 };
+
+export type DepositMethod = 'BANK' | 'VISA' | 'MASTERCARD';
 
 export type KycProfile = {
   kycStatus: KycStatus;
@@ -108,13 +114,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   getOverview: () => request<Overview>('/api/transfer'),
-  sendTransfer: (input: { recipientEmail: string; amount: number; reference?: string }) =>
+  sendTransfer: (input: {
+    recipientEmail: string;
+    amount: number;
+    reference?: string;
+    toCurrency?: string;
+    expectedToAmount?: number;
+  }) =>
     request<{ success: true; transfer: Transfer }>('/api/transfer', {
       method: 'POST',
       body: JSON.stringify(input),
     }),
   // Testmodus: ändert nur den Kontostand in der Datenbank, kein echtes Geld
-  walletAction: (input: { type: 'DEPOSIT' | 'WITHDRAWAL'; amount: number }) =>
+  walletAction: (input: { type: 'DEPOSIT' | 'WITHDRAWAL'; amount: number; method?: DepositMethod }) =>
     request<{ success: true; transfer: Transfer }>('/api/wallet', {
       method: 'POST',
       body: JSON.stringify(input),

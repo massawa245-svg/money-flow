@@ -15,6 +15,13 @@ const LABELS = {
   WITHDRAWAL: 'Auszahlung (Test)',
 } as const
 
+// Einzahlungswege, die im Testmodus simuliert werden (keine Kartennummer, keine echte Überweisung)
+const DEPOSIT_METHODS: Record<string, string> = {
+  BANK: 'Einzahlung per Überweisung (Test)',
+  VISA: 'Einzahlung per Visa (Test)',
+  MASTERCARD: 'Einzahlung per Mastercard (Test)',
+}
+
 // POST - Einzahlung oder Auszahlung (nur Datenbank)
 export async function POST(request: Request) {
   try {
@@ -49,6 +56,7 @@ export async function POST(request: Request) {
       )
     }
     const rounded = Math.round(amount * 100) / 100
+    const label = type === 'DEPOSIT' ? DEPOSIT_METHODS[body.method] ?? LABELS.DEPOSIT : LABELS[type]
 
     const blocked = requireVerified(await prisma.user.findUnique({ where: { email: user.email! } }))
     if (blocked) return blocked
@@ -82,7 +90,7 @@ export async function POST(request: Request) {
           currency: dbUser.currency,
           senderId: dbUser.id,
           recipientId: dbUser.id,
-          reference: LABELS[type],
+          reference: label,
           status: type,
           completedAt: new Date()
         },
@@ -93,7 +101,7 @@ export async function POST(request: Request) {
       })
     })
 
-    await logAudit({ userId: transfer.senderId, action: `WALLET_${type}`, details: { amount: rounded } })
+    await logAudit({ userId: transfer.senderId, action: `WALLET_${type}`, details: { amount: rounded, method: type === 'DEPOSIT' ? body.method ?? null : null } })
       .catch((e) => console.error('Audit-Log fehlgeschlagen:', e))
 
     return NextResponse.json({ success: true, transfer })

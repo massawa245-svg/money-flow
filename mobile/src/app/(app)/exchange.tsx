@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CurrencySelect } from '@/components/currency-select';
 import { Icon } from '@/components/icon';
 import { Button } from '@/components/ui/button';
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -11,27 +12,8 @@ import { api, ApiError, type Balance, type FxQuote } from '@/lib/api';
 import { formatAmount, formatMoney } from '@/lib/format';
 import { KEYS, applyKey } from '@/lib/keypad';
 
-const CURRENCIES = ['EUR', 'USD', 'ETB'] as const;
-
 function formatRate(value: number) {
   return value.toLocaleString('de-DE', { maximumFractionDigits: value < 1 ? 6 : 4 });
-}
-
-function CurrencyPicker({ value, onChange, label }: { value: string; onChange: (c: string) => void; label: string }) {
-  return (
-    <View style={styles.pickerRow} accessibilityLabel={label}>
-      {CURRENCIES.map((c) => (
-        <Pressable
-          key={c}
-          accessibilityRole="button"
-          accessibilityState={{ selected: value === c }}
-          onPress={() => onChange(c)}
-          style={[styles.chip, value === c && styles.chipActive]}>
-          <Text style={[styles.chipText, value === c && styles.chipTextActive]}>{c}</Text>
-        </Pressable>
-      ))}
-    </View>
-  );
 }
 
 export default function ExchangeScreen() {
@@ -79,6 +61,11 @@ export default function ExchangeScreen() {
     setTo(c);
   }
 
+  function swap() {
+    setFrom(to);
+    setTo(from);
+  }
+
   async function handleExchange() {
     if (!quote) return;
     setError(null);
@@ -120,9 +107,18 @@ export default function ExchangeScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <ScreenHeader title="Geld wechseln" />
 
-        <View style={styles.section}>
-          <Text style={styles.label}>Von</Text>
-          <CurrencyPicker value={from} onChange={pickFrom} label="Ausgangswährung" />
+        <View style={styles.pairRow}>
+          <View style={styles.pairSide}>
+            <Text style={styles.label}>Von</Text>
+            <CurrencySelect value={from} onChange={pickFrom} label="Von Währung" />
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Währungen tauschen" onPress={swap} style={styles.swap}>
+            <Icon name="exchange" size={20} color={Palette.white} />
+          </Pressable>
+          <View style={styles.pairSide}>
+            <Text style={styles.label}>Nach</Text>
+            <CurrencySelect value={to} onChange={pickTo} label="Nach Währung" />
+          </View>
         </View>
 
         <View style={styles.amountBox} accessible accessibilityLabel={`Betrag ${amountText || '0'} ${from}`}>
@@ -133,11 +129,6 @@ export default function ExchangeScreen() {
           <Text style={styles.amountMeta}>
             {from} · verfügbar {formatAmount(available)}
           </Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.label}>Nach</Text>
-          <CurrencyPicker value={to} onChange={pickTo} label="Zielwährung" />
         </View>
 
         <View style={styles.quoteCard}>
@@ -187,22 +178,18 @@ export default function ExchangeScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Palette.sand },
   content: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24, gap: 16 },
-  section: { gap: 8 },
   label: { fontFamily: FontFamily.bodySemi, fontSize: 14, color: Palette.ink },
-  pickerRow: { flexDirection: 'row', gap: 8 },
-  chip: {
-    flex: 1,
-    height: 44,
-    borderRadius: Radius.input,
-    borderWidth: 1.5,
-    borderColor: Palette.line,
-    backgroundColor: Palette.white,
+  pairRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  pairSide: { flex: 1, gap: 8 },
+  swap: {
+    width: 40,
+    height: 40,
+    marginBottom: 10,
+    borderRadius: 20,
+    backgroundColor: Palette.forest,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipActive: { backgroundColor: Palette.forest, borderColor: Palette.forest },
-  chipText: { fontFamily: FontFamily.bodySemi, fontSize: 15, color: Palette.ink },
-  chipTextActive: { color: Palette.white },
   amountBox: { alignItems: 'center', gap: 4 },
   amount: {
     fontFamily: FontFamily.display,
